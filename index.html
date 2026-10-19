@@ -702,7 +702,7 @@ DE.ui.bootPage({ after: function () {
     DE.ui.confirm({
       title: "导入全量备份",
       okText: "覆盖并恢复",
-      body: "这份备份会**覆盖本机现有的全部数据**（所有旅行者、游戏时间、手账）。" +
+      body: "这份备份会覆盖本机现有的全部数据（所有旅行者、游戏时间、手账）。" +
             "确定要继续吗？建议先把当前数据导出一份。"
     }).then(function (ok) {
       if (!ok) return;
