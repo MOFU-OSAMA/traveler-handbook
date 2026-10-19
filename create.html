@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>车卡 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+</head>
+<body>
+
+<div class="wrap">
+  <div class="page-title"><span>🧾</span>车卡</div>
+  <div class="page-sub">旅行者（玩家角色）卡。所有改动自动保存。</div>
+
+  <div class="cardtab" id="cardTab">
+    <a class="ct on" href="create.html">🧑‍🌾 旅行者<span class="sub">玩家角色 · 8 步</span></a>
+  </div>
+
+  <div id="checkPanel"></div>
+
+  <div id="cardTraveler">
+  <div class="steps" id="stepNav"></div>
+  <div id="expiryBanner"></div>
+
+  <div class="grid c2">
+    <!-- 1 基本信息 -->
+    <div class="card" id="sec-basic">
+      <h2>① 基本信息</h2>
+      <div class="row">
+        <label class="fld"><span>角色名字</span><input type="text" id="f_name" placeholder="维奥莱特"></label>
+        <label class="fld"><span>玩家名字</span><input type="text" id="f_player" placeholder="你的名字"></label>
+      </div>
+      <div class="row">
+        <label class="fld"><span>性别</span><input type="text" id="f_gender" placeholder="女"></label>
+        <label class="fld"><span>年龄</span><input type="text" id="f_age" placeholder="18"></label>
+      </div>
+      <div class="row">
+        <label class="fld"><span>等级</span><input type="number" id="f_level" min="1" max="10" step="1"></label>
+        <label class="fld"><span>经验值</span><input type="number" id="f_exp" min="0" step="1"></label>
+      </div>
+    </div>
+
+    <!-- 旅行者头像 -->
+    <div class="card" id="sec-portrait">
+      <h2>🖼️ 旅行者头像 / 立绘</h2>
+      <div class="pt-row">
+        <div id="portraitSlot"></div>
+        <div class="pt-info hint">
+          点一下方块（或把图片拖进去）即可上传头像，也可以上传半身立绘。<br>
+          图片自动压到长边 640 像素，保存在本机浏览器里；<b>PNG 透明背景会保留</b>，适合放立绘。
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 职业 -->
+    <div class="card" id="sec-prof">
+      <h2>② 选择职业</h2>
+      <div class="hint" style="margin-bottom:9px">
+        本游戏中的 7 种「职业」代表着角色的身份与地位。选择完毕后，可以获得该职业的 3 个特殊「技能」。
+      </div>
+      <label class="fld"><span>职业</span><select id="f_profession"></select></label>
+      <div id="profInfo"></div>
+    </div>
+  </div>
+
+  <div class="grid c2" style="margin-top:16px">
+    <!-- 3 特长 -->
+    <div class="card" id="sec-talent">
+      <h2>③ 选择特长</h2>
+      <div class="hint" style="margin-bottom:9px">
+        特长表示角色处理旅途中遭遇的事件或各种危险的能力。请从 3 种特长中选择 1 种。
+      </div>
+      <label class="fld"><span>特长类型</span><select id="f_talent"></select></label>
+      <div id="talentInfo"></div>
+    </div>
+
+    <!-- 4 能力值 -->
+    <div class="card" id="sec-ability">
+      <h2>④ 决定能力值</h2>
+      <div class="hint" style="margin-bottom:9px">
+        制作角色时能力值只能从「4、6、8」中选择。先从 3 种数值组合里选择 1 种，再按喜欢的顺序分配到四项能力值。
+      </div>
+      <div class="chips" id="setChips"></div>
+      <div id="setCheck" style="margin:10px 0"></div>
+      <div class="grid c4" id="abilityBoxes"></div>
+      <div class="btnrow">
+        <button class="ghost sm" id="btnResetAbil">按所选组合重置</button>
+        <button class="ghost sm" id="btnRandomAbil">随机分配</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid c2" style="margin-top:16px">
+    <!-- 5 派生数值 -->
+    <div class="card" id="sec-derived">
+      <h2>⑤ HP / MP 与派生数值</h2>
+      <div id="derivedBox"></div>
+      <div class="hint" style="margin-top:10px">
+        【HP 上限 = 体力 ×2】　【MP 上限 = 精神 ×2】<br>
+        【状态值 = 体力 + 精神】　【行动值 = 敏捷 + 智力】<br>
+        状态值达到 ★10 则一天状态绝佳！任意 1 个能力值上升 1 阶段！
+      </div>
+    </div>
+
+    <!-- 6 擅长武器 -->
+    <div class="card" id="sec-weapon">
+      <h2>⑥ 擅长武器与随身物品</h2>
+      <label class="fld"><span>擅长武器</span><select id="f_favored"></select></label>
+      <div id="weaponInfo"></div>
+      <div class="row" style="margin-top:10px">
+        <label class="fld"><span>擅长地貌</span><input type="text" id="f_terrain" placeholder="例如：森林"></label>
+        <label class="fld"><span>擅长天气</span><input type="text" id="f_weather" placeholder="例如：雨"></label>
+      </div>
+      <label class="fld"><span>随身物品（表现角色性格的小道具）</span>
+        <input type="text" id="f_personal" placeholder="例如：母亲留下的旧怀表"></label>
+      <div class="hint">
+        使用不是【擅长武器】的武器进行攻击时，每进行 1 次攻击，生命点数会减少 1 点。
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 购物 -->
+  <div class="card" style="margin-top:16px" id="sec-shop">
+    <h2>⑦ 用 1000 金币购买道具</h2>
+    <div class="inline" style="margin-bottom:11px">
+      <span>剩余金币：<b id="moneyNow" style="color:var(--gold);font-size:17px">—</b></span>
+      <span class="badge teal" id="sizeNow">—</span>
+      <span style="margin-left:auto"></span>
+      <a class="btn sm gold" href="shop.html">前往完整商店 →</a>
+    </div>
+    <div class="chips" id="kitChips"></div>
+    <div style="margin-top:12px">
+      <div class="hint" style="margin-bottom:7px">热销推荐（点击即购买）：</div>
+      <div class="chips" id="quickBuy"></div>
+    </div>
+    <div style="margin-top:14px">
+      <h3>已购买的道具</h3>
+      <div id="purchased"></div>
+    </div>
+  </div>
+
+
+  <!-- 异常状态：规则书 p74-p75（规则书 p74-p75） -->
+  <div class="card">
+    <h2>🩹 异常状态<span class="hint" style="font-weight:400;margin-left:8px">身体系 / 精神系 · 会压制能力值</span></h2>
+    <div class="hint" style="margin-bottom:10px">
+      规则书 p74：每种异常状态带一个数值，<b>次日的【状态判定】结果 ≥ 该数值就恢复正常</b>。
+      受异常状态影响时<b>能力值下降 1 阶段</b>（12→10→8→6→4，<b>不会小于 4</b>），
+      HP / MP / 行动值 / 状态值 / 尺寸上限 都会跟着变。
+      状态值为 2 以下的那天，从【重伤：4】【中毒：4】【萎靡：4】【激动：4】里选 1 种。
+    </div>
+    <div id="statusEditorCard"></div>
+  </div>
+
+    </div>
+
+  <!-- 8 角色信息 -->
+  <div class="card" style="margin-top:16px" id="sec-info">
+    <h2>⑧ 角色信息与记述</h2>
+    <label class="fld"><span>印象颜色与外表特征</span>
+      <textarea id="f_appearance" placeholder="浅红色双罗马卷，金黄色的眼睛，鲨鱼牙，穿着可爱"></textarea></label>
+    <label class="fld"><span>故乡与踏上旅途的原因</span>
+      <textarea id="f_hometown" placeholder="被家里人扔出来经历历练！当然，自己对于外面的世界也是十分感兴趣的！"></textarea></label>
+    <label class="fld"><span>记述（背景故事）</span>
+      <textarea id="f_story" placeholder="骑士爵家最小的孩子，自幼跟随家人习武并学习魔法……"></textarea></label>
+    <div class="btnrow">
+      <button class="primary" id="btnSave">保存角色卡</button>
+      <button class="ghost" id="btnText">导出为文本（抄卡用）</button>
+      <button class="ghost" id="btnPrint">打印角色卡</button>
+      <button class="danger" id="btnNew">新建空白角色</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>📋 车卡流程说明</h2>
+    <div id="stepDoc"></div>
+  </div>
+
+﻿    <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div><!-- /cardTraveler -->
+
+<div id="printView" class="printview"></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/storage.js?v=a1e43811"></script>
+<script src="js/core/portrait.js?v=b2d8f47d"></script>
+<script src="js/core/journal.js?v=0789d6b9"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script>
+  /* ---------- 异常状态（规则书 p74-p75） ---------- */
+  /* 异常状态：规则书 p74-p75。 */
+  function renderCardStatus() {
+    var ch = DE.store.character;
+    if (!ch) return;
+    DE.ui.statusEditor("#statusEditorCard", ch, null);
+  }
+
+DE.ui.bootPage({ after: function () {
+  var c = DE.store.character;
+  var $ = DE.ui.$;
+  renderCardStatus();
+
+  /* ---------- 步骤导航 ---------- */
+  var steps = [
+    ["basic","① 基本信息"],["prof","② 职业"],["talent","③ 特长"],["ability","④ 能力值"],
+    ["derived","⑤ 派生数值"],["weapon","⑥ 擅长武器"],["shop","⑦ 购物"],["info","⑧ 角色信息"]
+  ];
+  $("#stepNav").innerHTML = steps.map(function (s) {
+    return '<a href="#sec-' + s[0] + '">' + s[1] + "</a>";
+  }).join("");
+
+  /* ---------- 填充下拉 ---------- */
+  $("#f_profession").innerHTML = '<option value="">— 请选择职业 —</option>' +
+    DE.PROFESSIONS.map(function (p) {
+      return '<option value="' + p.id + '">' + DE.ui.esc(p.name) +
+        (p.beginner ? "（新手推荐）" : "") + (p.expansion ? "（扩展）" : "") + "</option>";
+    }).join("");
+  $("#f_talent").innerHTML = '<option value="">— 请选择特长 —</option>' +
+    DE.TYPES.map(function (t) { return '<option value="' + t.id + '">' + t.name + "</option>"; }).join("");
+  $("#f_favored").innerHTML = DE.WEAPONS_CHAR.map(function (w) {
+    return '<option value="' + DE.ui.esc(w.name) + '">' + DE.ui.esc(w.name) + "</option>";
+  }).join("");
+
+  /* ---------- 基本字段绑定 ---------- */
+  var fields = [
+    ["f_name","name"],["f_player","player"],["f_gender","gender"],["f_age","age"],
+    ["f_level","level"],["f_exp","exp"],
+    ["f_terrain","favoredTerrain"],["f_weather","favoredWeather"],["f_personal","personal"],
+    ["f_appearance","appearance"],["f_hometown","hometown"],["f_story","story"]
+  ];
+  function fillForm() {
+    fields.forEach(function (f) {
+      var el = $("#" + f[0]); if (!el) return;
+      el.value = c[f[1]] === undefined || c[f[1]] === null ? "" : c[f[1]];
+    });
+    $("#f_profession").value = c.profession || "";
+    $("#f_talent").value = c.talent || "";
+    if (c.favoredWeapons && c.favoredWeapons[0]) $("#f_favored").value = c.favoredWeapons[0];
+  }
+  fields.forEach(function (f) {
+    var el = $("#" + f[0]); if (!el) return;
+    el.addEventListener("input", function () {
+      var v = el.value;
+      if (el.type === "number") v = parseInt(v || "0", 10) || 0;
+      c[f[1]] = v;
+      DE.save(c); renderAll();
+    });
+  });
+  $("#f_profession").addEventListener("change", function () {
+    c.profession = this.value; DE.save(c); renderAll();
+  });
+  $("#f_talent").addEventListener("change", function () {
+    c.talent = this.value; DE.char.applyBonuses(c); DE.save(c); renderAll();
+  });
+  $("#f_favored").addEventListener("change", function () {
+    c.favoredWeapons[0] = this.value; DE.save(c); renderAll();
+  });
+  /* ---------- 页签：两个独立页面（不再挤在同一页） ---------- */
+  /* 只挂旅行者头像 */
+  function showCard(which) {
+      renderPortrait();
+    renderCheck("traveler");
+  }
+
+  /* ---------- 旅行者头像 ---------- */
+  function renderPortrait() {
+    DE.portrait.mount($("#portraitSlot"), {
+      id: "ptTraveler",
+      label: "旅行者头像 / 立绘",
+      hint: "点方块上传，或拖图片进来",
+      shape: "card",
+      value: c.portrait || "",
+      onPick: function (dataUrl, r) {
+        c.portrait = dataUrl;
+        DE.save(c);
+        DE.ui.toast("旅行者头像已更新（" + r.width + "×" + r.height +
+          "，" + DE.journal.fmtBytes(r.bytes) + "）。", "ok");
+        renderPortrait();
+      },
+      onClear: function () {
+        c.portrait = "";
+        DE.save(c);
+        DE.ui.toast("已移除旅行者头像。", "");
+        renderPortrait();
+      }
+    });
+  }
+
+  /* ---------- 职业信息 ---------- */
+  function renderProf() {
+    var p = DE.PROFESSIONS.filter(function (x) { return x.id === c.profession; })[0];
+    if (!p) { $("#profInfo").innerHTML = '<div class="hint">尚未选择职业。</div>'; return; }
+    var sk = DE.char.professionSkills(c);
+    var rows = sk.map(function (k) {
+      return '<tr><td><b>' + DE.ui.esc(k.name) + '</b></td><td>' + DE.ui.esc(k.ability) +
+        '</td><td>' + DE.ui.esc(k.target) + '</td></tr>' +
+        '<tr><td colspan="3" style="color:#6b5f50;font-size:12.5px;white-space:pre-wrap">' +
+        DE.ui.esc(k.effect) + "</td></tr>";
+    }).join("");
+    $("#profInfo").innerHTML =
+      '<div class="hint" style="margin-bottom:7px">' + DE.ui.esc(p.role) + '</div>' +
+      '<table class="tbl"><thead><tr><th>技能</th><th>使用能力值</th><th>目标值</th></tr></thead>' +
+      "<tbody>" + rows + "</tbody></table>";
+  }
+
+  /* ---------- 特长信息 ---------- */
+  function renderTalent() {
+    var t = DE.TYPES.filter(function (x) { return x.id === c.talent; })[0];
+    if (!t) { $("#talentInfo").innerHTML = '<div class="hint">尚未选择特长。</div>'; return; }
+    var rows = t.abilities.map(function (a) {
+      var d = DE.TALENT_ABILITIES[a] || { effect: "" };
+      return '<tr><td><b>' + DE.ui.esc(a) + '</b></td><td style="white-space:pre-wrap">' +
+        DE.ui.esc(d.effect) + "</td></tr>";
+    }).join("");
+    $("#talentInfo").innerHTML =
+      '<div class="hint" style="margin-bottom:7px">' + DE.ui.esc(t.desc) + '</div>' +
+      '<table class="tbl"><thead><tr><th>能力</th><th>效果</th></tr></thead><tbody>' + rows + "</tbody></table>";
+  }
+
+  /* ---------- 能力值 ---------- */
+  c.abilitySet = c.abilitySet || "standard";
+  function renderSets() {
+    $("#setChips").innerHTML = DE.ABILITY_SETS.map(function (s) {
+      return '<span class="chip' + (c.abilitySet === s.id ? " active" : "") + '" data-set="' + s.id +
+        '" title="' + DE.ui.esc(s.desc) + '">' + s.name + " · " + s.values.join("/") + "</span>";
+    }).join("");
+    DE.ui.$$("#setChips .chip").forEach(function (ch) {
+      ch.onclick = function () {
+        c.abilitySet = ch.getAttribute("data-set");
+        DE.char.applySetValues(c);
+        DE.save(c); renderAll();
+      };
+    });
+  }
+  function renderAbilities() {
+    $("#abilityBoxes").innerHTML = DE.ABILITY_KEYS.map(function (k) {
+      var opts = DE.char.ALLOWED_CREATE.map(function (v) {
+        return '<option value="' + v + '"' + (c.abilities[k.key] === v ? " selected" : "") + ">d" + v + "</option>";
+      }).join("");
+      return '<div class="ability-box" title="' + DE.ui.esc(k.desc) + '">' +
+        '<div class="nm">' + k.name + "</div>" +
+        '<div class="die">d' + c.abilities[k.key] + "</div>" +
+        '<div class="num">' + k.desc + "</div>" +
+        '<select data-ab="' + k.key + '">' + opts + "</select></div>";
+    }).join("");
+    DE.ui.$$("#abilityBoxes select").forEach(function (sel) {
+      sel.onchange = function () {
+        c.abilities[sel.getAttribute("data-ab")] = parseInt(sel.value, 10);
+        DE.save(c); renderAll();
+      };
+    });
+    var chk = DE.char.checkAbilitySet(c, c.abilitySet);
+    $("#setCheck").innerHTML = '<div class="alert ' + (chk.ok ? "green" : "gold") + '">' +
+      '<span class="ico">' + (chk.ok ? "✓" : "⚠") + "</span><div>" + DE.ui.esc(chk.msg) + "</div></div>";
+  }
+  $("#btnResetAbil").onclick = function () {
+    DE.char.applySetValues(c); DE.save(c); renderAll();
+  };
+  $("#btnRandomAbil").onclick = function () {
+    var s = DE.ABILITY_SETS.filter(function (x) { return x.id === c.abilitySet; })[0];
+    var vals = s.values.slice();
+    for (var i = vals.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)); var t = vals[i]; vals[i] = vals[j]; vals[j] = t;
+    }
+    DE.ABILITY_KEYS.forEach(function (k, i) { c.abilities[k.key] = vals[i]; });
+    DE.save(c); renderAll();
+  };
+
+  /* ---------- 派生数值 ---------- */
+  function renderDerived() {
+    var s = DE.char.summary(c);
+    var ab = c.abilities;
+    $("#derivedBox").innerHTML =
+      '<div class="statgrid">' +
+        '<div class="stat"><div class="k">HP 上限<br><span style="font-size:10px">体力×2</span></div><div class="v">' + s.hpMax + "</div></div>" +
+        '<div class="stat"><div class="k">MP 上限<br><span style="font-size:10px">精神×2</span></div><div class="v">' + s.mpMax + "</div></div>" +
+        '<div class="stat"><div class="k">状态值<br><span style="font-size:10px">体力+精神</span></div><div class="v">' + s.condition + "</div></div>" +
+        '<div class="stat"><div class="k">行动值<br><span style="font-size:10px">敏捷+智力</span></div><div class="v">' + s.action + "</div></div>" +
+      "</div>" +
+      '<div class="statgrid" style="margin-top:9px">' +
+        '<div class="stat"><div class="k">防御点</div><div class="v">' + s.defense + "</div></div>" +
+        '<div class="stat"><div class="k">格挡力</div><div class="v">' + (s.block || 0) + "</div></div>" +
+        '<div class="stat"><div class="k">装备减值</div><div class="v">' + s.penalty + "</div></div>" +
+        '<div class="stat"><div class="k">尺寸上限</div><div class="v">' + s.sizeLimit + "</div></div>" +
+      "</div>" +
+      (s.condition >= 10 ? '<div class="alert green" style="margin-top:10px"><span class="ico">★</span><div>状态值 ' +
+        s.condition + " ≥ 10：一天状态绝佳！任意 1 个能力值上升 1 阶段！</div></div>" : "") +
+      (s.talent.notes.length ? '<div class="hint" style="margin-top:9px"><b>特长带来的效果：</b><br>' +
+        s.talent.notes.map(DE.ui.esc).join("<br>") + "</div>" : "");
+  }
+
+  /* ---------- 擅长武器 ---------- */
+  function renderWeapon() {
+    var name = (c.favoredWeapons || [])[0] || "";
+    var w = DE.WEAPONS_CHAR.filter(function (x) { return x.name === name; })[0];
+    if (!w) { $("#weaponInfo").innerHTML = '<div class="hint">尚未选择擅长武器。</div>'; return; }
+    $("#weaponInfo").innerHTML =
+      '<table class="tbl" style="margin-top:7px"><tbody>' +
+      "<tr><th>包含</th><td>" + DE.ui.esc(w.includes) + "</td></tr>" +
+      "<tr><th>命中</th><td><b>" + DE.ui.esc(w.hit) + "</b></td></tr>" +
+      "<tr><th>伤害</th><td><b>" + DE.ui.esc(w.dmg) + "</b></td></tr>" +
+      "<tr><th>说明</th><td>" + DE.ui.esc(w.hand + " " + w.note) + "</td></tr>" +
+      "</tbody></table>";
+  }
+
+  /* ---------- 购物区 ---------- */
+  var QUICK = ["w_longsword","a_traveler","a_light","s_small","t_walkingshoes","t_rainboots",
+               "t_windcloak","t_hat","c_waterskin","c_herbbottle","f_ration","k_sleepbag",
+               "k_tent","d_torch","d_firekit","d_rope","set_travel","L_bigbackpack"];
+  function renderQuickBuy() {
+    $("#quickBuy").innerHTML = QUICK.map(function (id) {
+      var d = DE.findItem(id); if (!d) return "";
+      return '<span class="chip" data-buy="' + id + '">' + DE.ui.esc(d.name) +
+        " <b style='color:var(--gold)'>" + d.price + "G</b></span>";
+    }).join("");
+    DE.ui.$$("#quickBuy .chip").forEach(function (ch) {
+      ch.onclick = function () {
+        var d = DE.findItem(ch.getAttribute("data-buy"));
+        var r = DE.buy(c, d, { qty: 1 });
+        DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+        renderAll();
+      };
+    });
+  }
+  function renderKits() {
+    var kits = [
+      { id:"travel", label:"旅行基础套装（含大背包/睡袋/餐具/水袋/干粮×4）", price:150 },
+      { id:"party",  label:"队伍便利套装（驮兽/水桶/木箱/厨艺/火把×4/生火/香皂/洗衣/帐篷）", price:800 },
+      { id:"herb",   label:"药草瓶（延长药草保质期至 7 天）", price:100 }
+    ];
+    $("#kitChips").innerHTML = kits.map(function (k) {
+      return '<span class="chip" data-kit="' + k.id + '">🎁 ' + DE.ui.esc(k.label) +
+        ' <b style="color:var(--gold)">' + k.price + "G</b></span>";
+    }).join("");
+    DE.ui.$$("#kitChips .chip").forEach(function (ch) {
+      ch.onclick = function () {
+        var id = ch.getAttribute("data-kit");
+        var k = kits.filter(function (x) { return x.id === id; })[0];
+        if (c.money < k.price) { DE.ui.toast("金币不足：需要 " + k.price + " G。", "err"); return; }
+        c.money -= k.price;
+        var added = DE.char.starterKit(c, id);
+        DE.ui.toast("已购入套装，包含：" + added.join("、"), "ok");
+        renderAll();
+      };
+    });
+  }
+  function renderPurchased() {
+    var inv = c.inventory.filter(function (x) { return !x.equipped; });
+    if (!inv.length) {
+      $("#purchased").innerHTML = '<div class="empty"><span class="big">🛒</span>还没有购买任何道具。</div>';
+      return;
+    }
+    $("#purchased").innerHTML = '<table class="tbl"><thead><tr><th>名称</th><th class="num">尺寸</th>' +
+      '<th class="num">数量</th><th>类别</th><th class="num">耐久</th><th></th></tr></thead><tbody>' +
+      inv.map(function (x) {
+        var d = DE.instDef(x);
+        return "<tr><td>" + DE.ui.esc(x.name) + "</td><td class='num'>" + DE.sizeOf(x) +
+          "</td><td class='num'>" + x.qty + "</td><td>" +
+          (d ? DE.ui.esc((DE.CATEGORIES[d.cat] || {}).label || "") : "") +
+          "</td><td class='num'>" + x.durability + "/" + x.durabilityMax + "</td>" +
+          "<td><button class='sm danger' data-sell='" + x.instId + "'>卖出</button></td></tr>";
+      }).join("") + "</tbody></table>";
+    DE.ui.$$("#purchased [data-sell]").forEach(function (b) {
+      b.onclick = function () {
+        var r = DE.sell(c, b.getAttribute("data-sell"), 1);
+        DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+        renderAll();
+      };
+    });
+  }
+
+  /* ---------- 流程说明 ---------- */
+  $("#stepDoc").innerHTML = DE.CHAR_STEPS.map(function (s) {
+    return "<details><summary>步骤 " + s.n + "： " + DE.ui.esc(s.title) + "</summary>" +
+      '<div class="body">' + DE.ui.esc(s.detail) + "</div></details>";
+  }).join("") +
+  "<details><summary>郊游模式（面向新人玩家的简易模式）</summary><div class='body'>" +
+    DE.ui.esc(DE.PICNIC_MODE.desc) + "<br><br>" +
+    DE.PICNIC_MODE.rules.map(function (r) { return "・" + DE.ui.esc(r); }).join("<br>") + "<br><br>" +
+    DE.PICNIC_MODE.sets.map(function (s) { return "<b>" + DE.ui.esc(s.name) + "</b>：" + DE.ui.esc(s.items); }).join("<br>") +
+  "</div></details>";
+
+  /* ---------- 规则自检面板（只保留一份，按页签显示对应的卡） ---------- */
+  var CHECK_OPEN = false;
+
+  function checkBlock(title, r, icon) {
+    if (!r) return "";
+    var E = r.errors || [], W = r.warns || [], O = r.oks || [];
+    var head, cls;
+    if (E.length) { head = "⚠️ " + title + "：发现 " + E.length + " 处与规则书不符"; cls = "bad"; }
+    else if (W.length) { head = "🟡 " + title + "：没有冲突，" + W.length + " 项待完成"; cls = ""; }
+    else { head = "✅ " + title + "：完全符合规则书"; cls = "good"; }
+    return '<div class="cp-hd ' + cls + '">' + icon + " " + head + "</div>" +
+      '<div class="cp-bd">' +
+        (E.length ? "<h4>必须修正（与规则书冲突）</h4><ul>" +
+          E.map(function (t) { return '<li class="err">' + DE.ui.esc(t) + "</li>"; }).join("") + "</ul>" : "") +
+        (W.length ? "<h4>还没做完</h4><ul>" +
+          W.map(function (t) { return '<li class="warn">' + DE.ui.esc(t) + "</li>"; }).join("") + "</ul>" : "") +
+        (O.length ? '<h4 class="cp-mini" data-fold="1">✔ 已符合的 ' + O.length +
+          ' 项（点开查看）</h4><ul class="' + (CHECK_OPEN ? "" : "cp-fold") + '">' +
+          O.map(function (t) { return '<li class="good">' + DE.ui.esc(t) + "</li>"; }).join("") + "</ul>" : "") +
+        (!E.length && !W.length && !O.length
+          ? '<div class="hint">还没有可以检查的内容。</div>' : "") +
+      "</div>";
+  }
+
+  function renderCheck() {
+    var box = $("#checkPanel");
+    if (!box) return;
+    /* 这一页只管旅行者卡 */
+    box.className = "checkpanel" + (CHECK_OPEN ? " open" : "");
+    box.innerHTML = checkBlock("旅行者规范自检", DE.char.validate(c), "🧑‍🌾") +
+      '<div class="cp-hd" style="font-weight:400;font-size:11.5px;background:#f7f3e8;color:var(--ink-soft)">' +
+      "依据 p22 / p23 / p24 / p40 / p42 / p44　·　" +
+      "";
+    var fold = box.querySelector("[data-fold]");
+    if (fold) fold.onclick = function () { CHECK_OPEN = !CHECK_OPEN; renderCheck(); };
+  }
+
+  /* ---------- 总渲染 ---------- */
+  function renderAll() {
+    DE.char.applyBonuses(c);
+    var s = DE.char.summary(c);
+    $("#moneyNow").textContent = DE.ui.money(c.money);
+    $("#sizeNow").textContent = "持有尺寸 " + s.sizeUsed + " / " + s.sizeLimit +
+      (s.sizeOver ? "（超出 " + s.sizeOver + "）" : "");
+    $("#sizeNow").className = "badge " + (s.sizeOver ? "red" : "teal");
+    renderSets(); renderAbilities(); renderDerived();
+    renderProf(); renderTalent(); renderWeapon();
+    renderQuickBuy(); renderKits(); renderPurchased();
+    renderCheck();
+    DE.ui.expiryBanner($("#expiryBanner"));
+  }
+
+  fillForm(); renderAll();
+  /* 放在最后执行：确保上面所有 DOM 绑定都已就绪 */
+  setTimeout(function () { showCard("traveler"); }, 0);
+
+  /* ---------- 底部按钮 ---------- */
+  $("#btnSave").onclick = function () {
+    DE.save(c);
+    DE.ui.toast("角色卡已保存。", "ok");
+  };
+  $("#btnText").onclick = function () {
+    var txt = DE.char.asText(c);
+    var ov = DE.ui.el("div", { style: "position:fixed;inset:0;background:rgba(40,32,22,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px" });
+    ov.innerHTML = '<div class="card" style="max-width:720px;width:100%;max-height:84vh;overflow:auto;margin:0">' +
+      "<h2>角色卡文本（可复制）</h2>" +
+      '<textarea style="min-height:400px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px">' +
+      DE.ui.esc(txt) + "</textarea>" +
+      '<div class="btnrow" style="justify-content:flex-end"><button class="primary" id="copyTxt">复制</button>' +
+      '<button class="ghost" id="closeTxt">关闭</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector("#closeTxt").onclick = function () { document.body.removeChild(ov); };
+    ov.querySelector("#copyTxt").onclick = function () {
+      var ta = ov.querySelector("textarea");
+      ta.select();
+      try { document.execCommand("copy"); DE.ui.toast("已复制到剪贴板。", "ok"); }
+      catch (e) { DE.ui.toast("复制失败，请手动选择文本。", "err"); }
+    };
+  };
+  /* ---------- 打印视图：把整张卡排成 2~4 页 A4 ---------- */
+  function pvEsc(v) { return DE.ui.esc(v == null ? "" : String(v)); }
+  function pvRow(k, v) {
+    return '<tr><th>' + pvEsc(k) + "</th><td>" + (v || "—") + "</td></tr>";
+  }
+  function pvEmpty(t) { return '<div class="pv-none">' + pvEsc(t) + "</div>"; }
+  function profNm(id) {
+    var p = (DE.PROFESSIONS || []).filter(function (x) { return x.id === id; })[0];
+    return p ? p.name : "—";
+  }
+  function typeNm(id) {
+    var t = (DE.TYPES || []).filter(function (x) { return x.id === id; })[0];
+    return t ? t.name : "—";
+  }
+  function catNm(cat) {
+    var c = (DE.CATEGORIES || {})[cat];
+    return c ? c.label : (cat || "—");
+  }
+
+  function buildPrintView() {
+    var box = document.getElementById("printView");
+    if (!box) return;
+    var s = DE.char.summary(c);
+    var d = DE.derive(c);
+    var eff = (DE.effAbilities ? DE.effAbilities(c).abilities : c.abilities) || c.abilities;
+    var ab = c.abilities || {};
+    var H = [];
+
+    /* ===== 页 1：基本信息 + 能力 + 装备 + 异常状态 ===== */
+    H.push('<div class="pv-page">');
+    H.push('<div class="pv-head">');
+    H.push('<div class="pv-name">' + pvEsc(c.name || "（未命名旅行者）") + "</div>");
+    H.push('<div class="pv-meta">龙蛋物语 · 旅行者角色卡　Lv.' + pvEsc(c.level || 1) +
+      "　玩家：" + pvEsc(c.player || "—") + "</div>");
+    H.push("</div>");
+
+    H.push('<div class="pv-cols">');
+
+    /* 基本信息 */
+    H.push('<section class="pv-sec">');
+    H.push("<h3>基本信息</h3><table class=\"pv-tbl\">");
+    H.push(pvRow("等级 / 经验", pvEsc(c.level || 1) + " / " + pvEsc(c.exp || 0)));
+    H.push(pvRow("性别 / 年龄", pvEsc(c.gender || "—") + " / " + pvEsc(c.age || "—")));
+    H.push(pvRow("职业", pvEsc(profNm(c.profession))));
+    H.push(pvRow("特长", pvEsc(typeNm(c.talent))));
+    H.push(pvRow("擅长武器", pvEsc((c.favoredWeapons || []).filter(Boolean).join("、") || "—")));
+    H.push(pvRow("擅长地貌", pvEsc(c.favoredTerrain || "—")));
+    H.push(pvRow("擅长天气", pvEsc(c.favoredWeather || "—")));
+    H.push("</table></section>");
+
+    /* 能力值 */
+    H.push('<section class="pv-sec">');
+    H.push("<h3>能力值</h3><table class=\"pv-tbl pv-abil\">");
+    var down = (DE.effAbilities ? DE.effAbilities(c).down : {}) || {};
+    H.push("<tr><th>体力</th><th>敏捷</th><th>智力</th><th>精神</th></tr><tr>");
+    ["str", "agi", "int", "spr"].forEach(function (k) {
+      var raw = ab[k], e = eff[k];
+      var shown = (raw == null) ? "—" : ("d" + raw);
+      if (e != null && e !== raw) shown = "<s>d" + raw + "</s> → <b>d" + e + "</b>";
+      H.push("<td>" + shown + "</td>");
+    });
+    H.push("</tr></table>");
+    H.push("<table class=\"pv-tbl\" style=\"margin-top:4px\">");
+    H.push(pvRow("HP / MP", "<b>" + DE.hpNow(c) + "</b> / " + s.hpMax +
+      "　·　<b>" + DE.mpNow(c) + "</b> / " + s.mpMax));
+    H.push(pvRow("行动值 / 状态值", s.action + "　·　<b>" + s.status + "</b>（体力+精神 = " + s.condition + "）"));
+    H.push(pvRow("防御点 / 格挡力", s.defense + " / " + (s.block || 0)));
+    H.push(pvRow("持有尺寸", s.sizeUsed + " / " + s.sizeLimit +
+      (s.sizeOver ? '　<b class="pv-warn">超出 ' + s.sizeOver + "</b>" : "")));
+    H.push(pvRow("金币", pvEsc(c.money) + " G"));
+    H.push("</table></section>");
+
+    H.push("</div>"); /* /cols */
+
+    /* 装备 */
+    H.push('<section class="pv-sec">');
+    H.push("<h3>装备栏</h3><table class=\"pv-tbl pv-equip\">");
+    H.push("<tr><th>主手</th><th>副手</th><th>身体</th><th>盾</th></tr><tr>");
+    var EQ = c.equipped || {};
+    ["weapon1", "weapon2", "body", "shield"].forEach(function (k) {
+      var inst = DE.findInstance(c, EQ[k]);
+      var def = inst ? DE.instDef(inst) : null;
+      var txt = def ? (pvEsc(def.name) +
+        (def.hit ? "　命中 " + pvEsc(def.hit) : "") +
+        (def.dmg ? "　伤害 " + pvEsc(def.dmg) : "") +
+        (def.def != null && def.cat === "armor" ? "　防御 " + def.def : "") +
+        (def.block ? "　格挡 " + def.block : "")) : "—";
+      H.push("<td>" + txt + "</td>");
+    });
+    H.push("</tr></table></section>");
+
+    /* 异常状态 + 补给 */
+    H.push('<div class="pv-cols">');
+    H.push('<section class="pv-sec"><h3>异常状态</h3>');
+    var sts = c.statuses || [];
+    if (!sts.length) H.push(pvEmpty("无异常状态"));
+    else {
+      H.push('<table class="pv-tbl"><tr><th>名称</th><th>数值</th><th>类型</th></tr>');
+      sts.forEach(function (x) {
+        H.push("<tr><td>" + pvEsc(x.name) + "</td><td>" + pvEsc(x.value) +
+          "</td><td>" + pvEsc(x.type === "mental" ? "精神系" : "身体系") + "</td></tr>");
+      });
+      H.push("</table>");
+    }
+    H.push("</section>");
+
+    H.push('<section class="pv-sec"><h3>物资与减值</h3><table class="pv-tbl">');
+    var sup = DE.supplyState(c);
+    H.push(pvRow("口粮", sup.foodDays + " 天份"));
+    H.push(pvRow("水", sup.waterDays + " / " + sup.waterCapacity + " 天份"));
+    if (sup.penalty) H.push(pvRow("补给减值", '<b class="pv-warn">-' + sup.penalty + "</b>（已缺 " + sup.shortDays + " 天）"));
+    var pen = DE.judgmentPenalty(c, "other");
+    H.push(pvRow("判定减值合计", pen.value ? '<b class="pv-warn">' + pen.value + "</b>" : "±0"));
+    var mp = DE.movePenalty(c);
+    if (mp.value) H.push(pvRow("移动判定额外", '<b class="pv-warn">' + mp.value + "</b>（木箱）"));
+    H.push("</table></section>");
+    H.push("</div>");
+    H.push("</div>"); /* /page1 */
+
+    /* ===== 页 2：背包 ===== */
+    H.push('<div class="pv-page pv-break">');
+    H.push('<h2 class="pv-h2">背包与物资</h2>');
+    var groups = DE.containerGroups(c);
+    var allCont = groups.large.concat(groups.container).concat(groups.special);
+    if (allCont.length) {
+      allCont.forEach(function (ct) {
+        var def = DE.instDef(ct);
+        var inside = (c.inventory || []).filter(function (x) { return x.containerId === ct.instId; });
+        var cap = def.special === "herbBottle" ? (def.herbCapacity || 10) : (def.capacity || 0);
+        var used = def.special === "herbBottle" ? inside.length : DE.containerUsed(c, ct);
+        H.push('<section class="pv-sec">');
+        H.push("<h3>" + pvEsc(def.name) + "　<span class=\"pv-tag\">" +
+          (def.cat === "large" ? "大型容器" : (def.special === "herbBottle" ? "药草瓶" : "小型容器")) +
+          "</span>　尺寸 " + DE.sizeOf(ct) +
+          (cap ? "　容量 " + used + "/" + cap : "") + "</h3>");
+        if (!inside.length) H.push(pvEmpty("（空）"));
+        else {
+          H.push('<table class="pv-tbl"><tr><th>内容物</th><th>尺寸</th><th>数量</th><th>保质期</th></tr>');
+          inside.forEach(function (x) {
+            var lf = DE.shelfLife(c, x);
+            H.push("<tr><td>" + pvEsc(x.name) + "</td><td>" + DE.sizeOf(x) +
+              "</td><td>" + (x.qty || 1) + "</td><td>" +
+              (lf ? (lf.expired ? '<span class="pv-warn">已腐坏</span>' : "剩 " + DE.fmtRemain(lf.remainMs)) : "—") +
+              "</td></tr>");
+          });
+          H.push("</table>");
+        }
+        H.push("</section>");
+      });
+    }
+    var loose = DE.looseItems(c);
+    H.push('<section class="pv-sec"><h3>散装道具（直接计入持有尺寸）</h3>');
+    if (!loose.length) H.push(pvEmpty("（无）"));
+    else {
+      var looseSize = loose.reduce(function (a, x) { return a + DE.sizeOf(x) * (x.qty || 1); }, 0);
+      H.push('<table class="pv-tbl"><tr><th>道具</th><th>类别</th><th>尺寸</th><th>数量</th><th>耐久</th></tr>');
+      loose.forEach(function (x) {
+        var def = DE.instDef(x);
+        H.push("<tr><td>" + pvEsc(x.name) + "</td><td>" + pvEsc(catNm(def.cat)) +
+          "</td><td>" + DE.sizeOf(x) + "</td><td>" + (x.qty || 1) +
+          "</td><td>" + (x.durability == null ? "—" : x.durability) + "</td></tr>");
+      });
+      H.push("</table>");
+      H.push('<div class="pv-note">合计 ' + looseSize + " 点尺寸</div>");
+    }
+    H.push("</section>");
+    /* 药草保质期单列 */
+    var exps = DE.expiryList(c);
+    if (exps.length) {
+      H.push('<section class="pv-sec"><h3>保质期一览</h3><table class="pv-tbl">');
+      H.push("<tr><th>名称</th><th>方式</th><th>剩余</th></tr>");
+      exps.forEach(function (x) {
+        H.push("<tr><td>" + pvEsc(x.inst.name) + "</td><td>" + pvEsc(x.life.label) +
+          "</td><td>" + (x.life.expired ? '<span class="pv-warn">已腐坏</span>'
+            : "剩 " + DE.fmtRemain(x.life.remainMs)) + "</td></tr>");
+      });
+      H.push("</table></section>");
+    }
+    H.push("</div>"); /* /page2 */
+
+    /* ===== 页 3：咒语 + 马车 ===== */
+    H.push('<div class="pv-page pv-break">');
+    H.push('<h2 class="pv-h2">咒语与马车</h2>');
+    var kn = [];
+    try { kn = DE.knownGeneral(c); } catch (e) { kn = []; }
+    H.push('<section class="pv-sec"><h3>已学咒语（' + kn.length + " 个）</h3>");
+    if (!kn.length) H.push(pvEmpty("还没学咒语"));
+    else {
+      H.push('<table class="pv-tbl"><tr><th>No</th><th>名称</th><th>等级</th><th>咏唱</th><th>MP</th><th>效果</th></tr>');
+      kn.forEach(function (m) {
+        H.push("<tr><td>" + pvEsc(m.no) + "</td><td>" + pvEsc(m.name) + "</td><td>" +
+          pvEsc(m.level) + "</td><td>" + pvEsc(m.chant) + "</td><td>" + pvEsc(m.mp) +
+          "</td><td class=\"pv-eff\">" + pvEsc(m.duration || "") + " " + pvEsc(m.effect || "") + "</td></tr>");
+      });
+      H.push("</table>");
+    }
+    H.push("</section>");
+    if (c.seasonMagic) {
+      H.push('<section class="pv-sec"><h3>季节魔法　<span class="pv-tag">' +
+        pvEsc(c.seasonMagic) + "之章</span></h3>");
+      var sm = (DE.SEASONAL_MAGIC || []).filter(function (m) { return m.season === c.seasonMagic; })[0];
+      if (sm) H.push('<table class="pv-tbl"><tr><th>名称</th><th>咏唱</th><th>MP</th><th>效果</th></tr><tr><td>' +
+        pvEsc(sm.name) + "</td><td>" + pvEsc(sm.chant) + "</td><td>" + pvEsc(sm.mp) +
+        '</td><td class="pv-eff">' + pvEsc(sm.effect || "") + "</td></tr></table>");
+      else H.push(pvEmpty("（未选择季节魔法）"));
+      H.push("</section>");
+    }
+
+    /* 马车 */
+    H.push('<section class="pv-sec"><h3>马车</h3>');
+    var wg = c.wagon;
+    if (!wg || !wg.type) H.push(pvEmpty("还没有马车"));
+    else {
+      var wt = (DE.wagon && DE.wagon.TYPES || []).filter(function (t) { return t.id === wg.type; })[0];
+      H.push('<table class="pv-tbl">');
+      H.push(pvRow("车型", pvEsc(wt ? wt.name : wg.type)));
+      H.push(pvRow("房间数", (wg.rooms || []).length + " 间"));
+      var wowned = wg.owned || [];
+      H.push(pvRow("车内物资", wowned.length
+        ? wowned.map(function (o) {
+            var dt = DE.findItem ? DE.findItem(o.itemId) : null;
+            return pvEsc((dt && dt.name) || o.itemId) + (o.qty > 1 ? "×" + o.qty : "");
+          }).join("、")
+        : "—"));
+      H.push("</table>");
+    }
+    H.push("</section>");
+    H.push("</div>"); /* /page3 */
+
+    /* ===== 页 4：角色记述 + 金币账本 ===== */
+    var hasStory = c.appearance || c.hometown || c.story || c.personal || c.notes;
+    if (hasStory || (c.ledger || []).length) {
+      H.push('<div class="pv-page pv-break">');
+      H.push('<h2 class="pv-h2">角色记述</h2>');
+      H.push('<section class="pv-sec"><table class="pv-tbl pv-story">');
+      if (c.personal) H.push(pvRow("个人资料", pvEsc(c.personal)));
+      if (c.appearance) H.push(pvRow("外表特征", pvEsc(c.appearance)));
+      if (c.hometown) H.push(pvRow("故乡与旅途原因", pvEsc(c.hometown)));
+      if (c.story) H.push(pvRow("背景故事", pvEsc(c.story)));
+      if (c.notes) H.push(pvRow("备注", pvEsc(c.notes)));
+      H.push("</table></section>");
+
+      var led = (c.ledger || []);
+      if (led.length) {
+        H.push('<section class="pv-sec"><h3>金币账本（最近 ' + Math.min(led.length, 14) + " 条）</h3>");
+        H.push('<table class="pv-tbl"><tr><th>时间</th><th>增减</th><th>余额</th><th>说明</th></tr>');
+        led.slice(-14).reverse().forEach(function (e) {
+          H.push("<tr><td>" + pvEsc(String(e.at || "").slice(0, 16).replace("T", " ")) +
+            '</td><td class="' + (e.delta > 0 ? "pv-in" : "pv-out") + '">' +
+            (e.delta > 0 ? "+" : "") + pvEsc(e.delta) +
+            "</td><td>" + pvEsc(e.balance) + "</td><td>" + pvEsc(e.note) + "</td></tr>");
+        });
+        H.push("</table></section>");
+      }
+      H.push("</div>");
+    }
+
+    /* 页脚 */
+    H.push('<div class="pv-foot">导出于 ' + pvEsc(new Date().toLocaleString()) +
+      "　·　龙蛋物语旅行者手册" +
+      '<br>本角色卡仅供个人跑团使用，请勿公开传播。规则书著作权归原作者及出版方所有。</div>');
+
+    box.innerHTML = H.join("");
+  }
+
+  /* ---------- 打印角色卡 ---------- */
+  $("#btnPrint").onclick = function () {
+    try {
+      buildPrintView();
+    } catch (e) {
+      DE.ui.toast("生成打印视图失败：" + (e && e.message ? e.message : e), "err");
+      return;
+    }
+    /* 等一帧让浏览器把布局算完再弹打印框 */
+    setTimeout(function () {
+      try {
+        if (typeof window.print === "function") window.print();
+        else DE.ui.toast("这个浏览器不支持直接打印，请按 Ctrl+P。", "");
+      } catch (e) {
+        DE.ui.toast("打印失败，请按 Ctrl+P 试试。", "err");
+      }
+    }, 60);
+  };
+  $("#btnNew").onclick = function () {
+    DE.ui.confirm({ title: "新建空白角色", body: "当前角色的所有信息与背包内容都会被清空，且无法撤销。", okText: "确定新建" })
+      .then(function (ok) {
+        if (!ok) return;
+        DE.store.character = DE.char.fresh();
+        DE.save(DE.store.character);
+        location.reload();
+      });
+  };
+}});
+</script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

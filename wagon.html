@@ -1,0 +1,329 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>马车 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<style>
+/* ============================================================
+ *  马车 —— 参照《明日方舟》宿舍界面风格
+ *  深色金属面板 + 蓝图网格 + 青色/琥珀色高亮
+ * ============================================================ */
+.wg{
+  --d-bg:#12161c; --d-bg2:#1a2029; --d-panel:#222a35; --d-line:#39485a;
+  --d-txt:#dfe8f2; --d-dim:#8ea0b5; --d-cyan:#4ec9d4; --d-amber:#e8b04b;
+  --d-green:#69c07a; --d-red:#d9776b;
+}
+.wg-top{
+  position:relative;border-radius:14px;overflow:hidden;margin-bottom:16px;
+  background:
+    radial-gradient(1200px 380px at 15% -30%, rgba(78,201,212,.16), transparent 60%),
+    radial-gradient(900px 320px at 100% 0%, rgba(232,176,75,.12), transparent 60%),
+    linear-gradient(180deg,#1b222c,#12161c);
+  border:1px solid var(--d-line);padding:20px 22px;
+}
+.wg-top:before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(78,201,212,.07) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(78,201,212,.07) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+.wg-top h2{margin:0 0 3px;color:#fff;font-size:19px;letter-spacing:.5px;
+           display:flex;align-items:center;gap:9px;position:relative}
+.wg-top .sub{color:var(--d-dim);font-size:12.5px;position:relative;line-height:1.7}
+.wg-line{
+  display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;position:relative;
+}
+.wg-chip{
+  background:rgba(255,255,255,.05);border:1px solid var(--d-line);border-radius:8px;
+  padding:7px 12px;font-size:12.5px;color:var(--d-txt);display:flex;align-items:center;gap:7px;
+}
+.wg-chip b{color:var(--d-cyan);font-variant-numeric:tabular-nums}
+.wg-chip.gold b{color:var(--d-amber)}
+
+/* ---------- 车种选择 ---------- */
+.wg-types{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px}
+.wg-t{
+  position:relative;border:1px solid var(--d-line);border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,#212a35,#1a212a);transition:.16s;display:flex;flex-direction:column;
+}
+.wg-t:hover{transform:translateY(-3px);border-color:var(--d-cyan);
+            box-shadow:0 10px 26px rgba(0,0,0,.4), 0 0 0 1px rgba(78,201,212,.25)}
+.wg-t.on{border-color:var(--d-amber);box-shadow:0 0 0 1px rgba(232,176,75,.4), 0 10px 26px rgba(0,0,0,.4)}
+.wg-t .ph{
+  height:118px;display:flex;align-items:center;justify-content:center;font-size:52px;
+  background:radial-gradient(circle at 50% 120%, rgba(78,201,212,.22), transparent 65%),
+             linear-gradient(180deg,#28323f,#1d242d);
+  border-bottom:1px solid var(--d-line);position:relative;
+}
+.wg-t .ph:after{
+  content:"";position:absolute;inset:0;opacity:.4;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:16px 16px;
+}
+.wg-t .tagline{position:absolute;top:9px;left:10px;font-size:10.5px;font-weight:700;
+  background:rgba(0,0,0,.45);border:1px solid var(--d-line);color:var(--d-cyan);
+  padding:2px 8px;border-radius:999px;letter-spacing:.5px;z-index:2}
+.wg-t .bd{padding:13px 14px;flex:1;display:flex;flex-direction:column}
+.wg-t h3{margin:0 0 3px;color:#fff;font-size:15.5px}
+.wg-t .price{color:var(--d-amber);font-weight:700;font-size:14px;margin-bottom:9px;
+             font-variant-numeric:tabular-nums}
+.wg-t .spec{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11.5px;
+            color:var(--d-dim);margin-bottom:9px}
+.wg-t .spec b{color:var(--d-txt);font-weight:600}
+.wg-t .bonus{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.wg-t .bonus span{font-size:10.5px;background:rgba(78,201,212,.14);border:1px solid rgba(78,201,212,.35);
+                  color:var(--d-cyan);border-radius:999px;padding:2px 8px}
+.wg-t .desc{font-size:11.5px;color:var(--d-dim);line-height:1.7;flex:1;margin-bottom:11px}
+
+/* ---------- 通用深色面板 ---------- */
+.wg-panel{
+  background:linear-gradient(180deg,#1e242e,#171c24);border:1px solid var(--d-line);
+  border-radius:13px;overflow:hidden;margin-bottom:15px;
+}
+.wg-panel>.hd{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;
+  background:linear-gradient(180deg,#2a3441,#212934);border-bottom:1px solid var(--d-line);
+}
+.wg-panel>.hd h3{margin:0;color:#fff;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.wg-panel>.hd .sp{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
+.wg-panel>.bd{padding:15px 16px}
+.wg-btn{
+  background:linear-gradient(180deg,#33404f,#28323d);border:1px solid var(--d-line);
+  color:var(--d-txt);border-radius:8px;padding:7px 13px;font-size:12.5px;cursor:pointer;
+  transition:.14s;font-weight:600;
+}
+.wg-btn:hover{border-color:var(--d-cyan);color:#fff;background:linear-gradient(180deg,#3b4a5b,#303b48)}
+.wg-btn.primary{background:linear-gradient(180deg,#3f8f99,#2f6f77);border-color:#4ec9d4;color:#fff}
+.wg-btn.primary:hover{background:linear-gradient(180deg,#4aa4af,#357c85)}
+.wg-btn.gold{background:linear-gradient(180deg,#b98a33,#946c25);border-color:#e8b04b;color:#fff}
+.wg-btn.gold:hover{background:linear-gradient(180deg,#cf9a3a,#a4782a)}
+.wg-btn.danger{background:linear-gradient(180deg,#8c4a42,#6f3a34);border-color:#d9776b;color:#fff}
+.wg-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.wg-btn.sm{padding:4px 9px;font-size:11.5px;border-radius:6px}
+
+/* ---------- 房间 ---------- */
+.wg-rooms{display:grid;grid-template-columns:repeat(auto-fit,minmax(288px,1fr));gap:15px}
+.wg-room{
+  border:1px solid var(--d-line);border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,#232b36,#1a2028);
+}
+.wg-room .rh{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;
+  background:linear-gradient(180deg,#2c3745,#232b36);border-bottom:1px solid var(--d-line);
+}
+.wg-room .rh .ic{font-size:17px}
+.wg-room .rh b{color:#fff;font-size:13px}
+.wg-room .rh select{
+  margin-left:auto;background:#1b222b;color:var(--d-txt);border:1px solid var(--d-line);
+  border-radius:6px;padding:3px 6px;font-size:11.5px;max-width:118px;
+}
+.wg-room .rb{padding:12px}
+.wg-grid{
+  display:grid;gap:4px;margin:0 auto;position:relative;
+  background:
+    linear-gradient(rgba(78,201,212,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(78,201,212,.06) 1px,transparent 1px),
+    #141a21;
+  background-size:100% 100%;
+  border:1px solid var(--d-line);border-radius:9px;padding:5px;
+  box-shadow:inset 0 2px 12px rgba(0,0,0,.55);
+}
+.wg-cell{
+  position:relative;aspect-ratio:1/1;border-radius:5px;
+  background:rgba(255,255,255,.028);border:1px solid rgba(120,150,180,.16);
+  display:flex;align-items:center;justify-content:center;transition:.12s;cursor:pointer;
+}
+.wg-cell:hover{background:rgba(78,201,212,.12);border-color:var(--d-cyan);z-index:3}
+.wg-cell.has{background:linear-gradient(180deg,rgba(78,201,212,.14),rgba(78,201,212,.06));
+              border-color:rgba(78,201,212,.45)}
+.wg-cell.has .ic{font-size:22px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+.wg-cell .ic{font-size:19px;pointer-events:none;line-height:1}
+.wg-cell.f2{grid-column:span 2}
+.wg-cell .nm{
+  position:absolute;left:1px;right:1px;bottom:0;font-size:8.5px;text-align:center;color:#bcd2e6;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+  text-shadow:0 0 3px #0d1116,0 0 3px #0d1116;
+}
+.wg-cell.ghost{outline:2px dashed var(--d-amber);outline-offset:-2px}
+.wg-room .foot{
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;
+  font-size:11.5px;color:var(--d-dim);
+}
+.wg-bar{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;flex:1;min-width:70px}
+.wg-bar>i{display:block;height:100%;background:linear-gradient(90deg,#4ec9d4,#69c07a);transition:width .3s}
+
+/* ---------- 目录 ---------- */
+.wg-cat{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:11px}
+.wg-c{
+  border:1px solid var(--d-line);border-radius:10px;padding:11px 12px;
+  background:linear-gradient(180deg,#232b36,#1b222b);transition:.14s;display:flex;flex-direction:column;
+}
+.wg-c:hover{border-color:var(--d-cyan)}
+.wg-c .hd{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.wg-c .hd .ic{font-size:24px}
+.wg-c .hd .n{flex:1;min-width:0}
+.wg-c .hd b{color:#fff;font-size:13.5px;display:block}
+.wg-c .hd .k{font-size:10.5px;color:var(--d-dim)}
+.wg-c .pr{color:var(--d-amber);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;
+          white-space:nowrap}
+.wg-c .ef{font-size:11.5px;color:var(--d-dim);line-height:1.7;flex:1;margin-bottom:9px}
+.wg-c .ef b{color:var(--d-cyan);font-weight:600}
+.wg-c .ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wg-c .stock{font-size:11px;color:var(--d-dim);margin-right:auto}
+.wg-c .stock b{color:var(--d-green)}
+.wg-c .stock.zero b{color:var(--d-red)}
+.wg-tabs{display:flex;gap:7px;flex-wrap:wrap}
+.wg-tab{
+  padding:7px 15px;border-radius:9px;border:1px solid var(--d-line);
+  background:linear-gradient(180deg,#28323d,#1f272f);color:var(--d-dim);
+  font-size:13px;font-weight:600;cursor:pointer;transition:.14s;
+}
+.wg-tab:hover{color:var(--d-txt);border-color:var(--d-cyan)}
+.wg-tab.on{background:linear-gradient(180deg,#3f8f99,#2f6f77);border-color:#4ec9d4;color:#fff}
+.wg-tab .n{font-size:11px;opacity:.8;margin-left:5px}
+
+/* 加值汇总 */
+.wg-bonus{display:flex;gap:7px;flex-wrap:wrap}
+.wg-bonus span{
+  font-size:11.5px;background:rgba(105,192,122,.13);border:1px solid rgba(105,192,122,.35);
+  color:var(--d-green);border-radius:999px;padding:3px 10px;
+}
+.wg-empty{padding:26px 16px;text-align:center;color:var(--d-dim);font-size:12.5px;line-height:1.9}
+.wg-empty .big{display:block;font-size:30px;opacity:.55;margin-bottom:7px}
+.wg-note{
+  background:rgba(232,176,75,.09);border:1px solid rgba(232,176,75,.3);color:#e5c98a;
+  border-radius:9px;padding:10px 13px;font-size:12px;line-height:1.75;margin-bottom:13px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>🐴</span>马车</div>
+  <div class="page-sub">买一辆马车、装修内部、加装外部设施 —— 依据规则书 p171–p175「马车之旅 / 马车数据 / 马车改造」。</div>
+
+  <div id="expiryBanner"></div>
+
+  <div class="wg">
+    <div class="wg-top" id="wgTop"></div>
+
+    <div id="wgNoWagon">
+      <div class="card" style="margin-bottom:15px">
+        <h2>🚚 选一辆马车</h2>
+        <div class="hint" style="margin-bottom:13px">
+          马车只能在<b>等级 2 以下</b>的地貌上使用；有铺设道路的地貌则不受等级限制。买车<b>不含动物</b>的价格，
+          动物需要另外准备。买下后可以随时改造，改造项目数量不限。
+        </div>
+        <div class="wg-types" id="wgTypes"></div>
+      </div>
+    </div>
+
+    <div id="wgHasWagon" style="display:none">
+      <div class="wg-panel">
+        <div class="hd">
+          <h3>🏠 房间</h3>
+          <span class="sp" id="wgRoomBtns"></span>
+        </div>
+        <div class="bd">
+          <div class="hint" style="color:var(--d-dim);margin-bottom:12px">
+            <b>3×3 / 4×4 是「一间房里的格子数」，不是房间数量。</b>
+            初始房间 3×3（<b>1500 G</b>）；升级后<b>每间房</b>变成 4×4（<b>4000 G</b>）——
+            格子变多，能摆更多家具。<br>
+            点<b>家具</b>再点房间里的空格即可摆放；点已摆放的格子把它收起来。
+            当前每间房 <b id="wgGridHint">3×3</b>。
+          </div>
+          <div class="wg-rooms" id="wgRooms"></div>
+        </div>
+      </div>
+
+      <div class="wg-panel">
+        <div class="hd">
+          <h3>🛍️ 装潢目录</h3>
+          <span class="sp"><span class="wg-tabs" id="wgCatTabs"></span></span>
+        </div>
+        <div class="bd">
+          <div class="wg-note" id="wgBuyHint"></div>
+          <div class="wg-cat" id="wgCat"></div>
+        </div>
+      </div>
+
+      <div class="wg-panel">
+        <div class="hd"><h3>📊 加值汇总</h3></div>
+        <div class="bd"><div class="wg-bonus" id="wgBonuses"></div></div>
+      </div>
+
+      <div class="wg-panel">
+        <div class="hd">
+          <h3>📖 马车数据与规则</h3>
+          <span class="sp"><button class="wg-btn sm danger" id="wgSell">卖掉马车</button></span>
+        </div>
+        <div class="bd" id="wgRules"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>📖 马车规则速查（规则书原文）</h2>
+    <div class="grid c3">
+      <div><h3>通行范围</h3><div class="holder hint">
+        马车只能在<b>等级 2 以下</b>的地貌上使用。要进入等级 3 及以上的地貌，必须下车步行；
+        但<b>如果该地貌有铺设道路，则无论等级都可以通行</b>。
+      </div></div>
+      <div><h3>加值与限制</h3><div class="holder hint">
+        乘坐马车的所有人都能获得<b>【移动判定】和【野营判定】</b>的加值。
+        但乘员与乘客<b>无法获得旅行装备的加值</b>。
+        在普通地貌上速度与步行差不多，但<b>疲劳大幅降低</b>。
+      </div></div>
+      <div><h3>道路与驿站</h3><div class="holder hint">
+        设有道路和驿站的地貌上，除了马车本身的加值，【移动判定】还能<b>额外 +1</b>。
+        马车一天移动 <b>30 公里</b>，在道路上提高一倍到 <b>60 公里</b>。
+      </div></div>
+    </div>
+    <div class="grid c3" style="margin-top:12px">
+      <div><h3>房间怎么算</h3><div class="holder hint">
+        <b>3×3 / 4×4 是每间房里的格子数。</b>
+        轻型马车 1 间房、<b>不能增添</b>但可升级；四轮马车 <b>升级房间 ×1、可添加房间 ×2</b>；
+        大型马车 <b>初始 1 间 + 升级 ×1 + 可添加 ×3</b>。
+      </div></div>
+      <div><h3>改造</h3><div class="holder hint">
+        自己拥有的马车可以在城市中改造，<b>改造项目数量不限</b>。
+        外部设施（雪橇 / 顶篷 / 车轮 / 装甲）属于改造项目。
+      </div></div>
+      <div><h3>费用参考</h3><div class="holder hint">
+        公共马车 2 金；驿站马匹 1 天 30 金；驿站马车 1 天 100 金；加急驿站马匹 1 天 150 金。
+        加急马车 1 天移动距离为普通马车的 <b>2 倍</b>。
+      </div></div>
+      <div><h3>动物的特征</h3><div class="holder hint">
+        <b>脚程快的</b>（价格 ×3）：拉车的动物有此特征时，马车移动距离也能变为 2 倍。
+        <b>狩猎用的</b>（+2000 金）：猎人带此类动物时〔动物搜寻〕〔狩猎〕+1。
+      </div></div>
+    </div>
+  </div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/wagon.js?v=e844784f"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/wagon.js?v=6d6efb1b"></script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

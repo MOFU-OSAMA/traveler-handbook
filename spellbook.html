@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>咒语书 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<style>
+  .sb-head{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+  .mpwrap{margin-top:4px}
+  .mpbar{height:15px;background:var(--parch-2);border:1px solid var(--line);border-radius:999px;
+         overflow:hidden;position:relative}
+  .mpbar>i{display:block;height:100%;background:linear-gradient(90deg,#7fb8e8,#3f7db8);transition:width .3s}
+  .mpbar.low>i{background:linear-gradient(90deg,#e8b87f,#c07a2f)}
+  .mpbar.empty>i{background:linear-gradient(90deg,#d99a9a,#b0473c)}
+  .mptext{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-soft);margin-top:4px}
+  .mpbtns{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+
+  .sb-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:16px 0 12px}
+  .sb-tabs .tb{padding:8px 16px;border-radius:9px;border:1px solid var(--line);background:#fffdf7;
+               cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink-soft);transition:.15s}
+  .sb-tabs .tb:hover{border-color:var(--gold-lt);background:#fffaf0}
+  .sb-tabs .tb.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .sb-tabs .tb .n{font-size:11px;opacity:.8;margin-left:5px}
+
+  .tierhead{display:flex;align-items:center;gap:9px;margin:16px 0 9px}
+  .tierhead h3{margin:0;font-size:14.5px;color:var(--teal-dk)}
+  .tierhead .ln{flex:1;height:1px;background:var(--line)}
+
+  /* 咒语格：书页上的条目 */
+  .spellgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:10px}
+  .spellcard{
+    position:relative;border:1px solid var(--line);border-radius:10px;background:#fffdf7;
+    padding:11px 12px 12px;cursor:pointer;transition:.14s;
+    box-shadow:0 1px 4px rgba(90,72,45,.10);
+  }
+  .spellcard:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(90,72,45,.20);
+                   border-color:var(--gold-lt)}
+  .spellcard.learned{border-color:var(--teal);background:linear-gradient(180deg,#f2faf8,#e8f4f1)}
+  .spellcard.learned::after{
+    content:"已学会";position:absolute;top:-8px;right:9px;font-size:10px;font-weight:700;
+    background:var(--teal);color:#fff;padding:1px 8px;border-radius:999px;
+  }
+  .spellcard.locked{opacity:.62;cursor:not-allowed}
+  .spellcard.locked:hover{transform:none;box-shadow:0 1px 4px rgba(90,72,45,.10)}
+  .spellcard .top{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+  .spellcard .no{font-size:10.5px;color:#a89b85;font-variant-numeric:tabular-nums}
+  .spellcard .nm{font-size:14.5px;font-weight:700;color:var(--teal-dk);flex:1;line-height:1.35}
+  .spellcard .mp{
+    font-size:12px;font-weight:700;color:#3f7db8;background:#eaf3fb;border:1px solid #b9d4ea;
+    border-radius:999px;padding:1px 8px;white-space:nowrap;
+  }
+  .tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+  .tags .tg{font-size:10.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);
+            background:var(--parch-2);color:var(--ink-soft)}
+  .tags .tg.lv1{background:#e9f4e4;border-color:#b3d3a4;color:#3f6b33;font-weight:700}
+  .tags .tg.lv2{background:#e7f0fa;border-color:#a8c6e4;color:#2b5f8f;font-weight:700}
+  .tags .tg.lv3{background:#f1e9fb;border-color:#c9aee8;color:#6b3fa0;font-weight:700}
+  .tags .tg.chant{background:#fdf4dd;border-color:#e8cf94;color:#8a6a1a}
+  .tags .tg.season{background:#fdeaf4;border-color:#f0b3d4;color:#b04a80;font-weight:700}
+  .spellcard .eff{font-size:12px;color:var(--ink-soft);line-height:1.72;white-space:pre-wrap;
+                  max-height:5.2em;overflow:hidden;position:relative}
+  .spellcard.open .eff{max-height:none}
+  .spellcard .more{font-size:11px;color:var(--teal);margin-top:4px}
+  .spellcard .why{font-size:11.5px;color:#b0473c;margin-top:6px}
+
+  .filterrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .filterrow .fld>span{font-size:11.5px}
+  .chipwrap .cw.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+  .chipwrap .cw .x{opacity:.65;margin-left:4px}
+  .sb-side .card{padding:13px 14px;margin-bottom:12px}
+  .sb-side h3{margin:0 0 9px;font-size:13.5px;color:var(--teal-dk);
+              border-bottom:1px solid var(--gold-lt);padding-bottom:6px}
+  .slotlist{display:flex;gap:4px;flex-wrap:wrap}
+  .slotpip{width:19px;height:19px;border-radius:5px;border:1px solid var(--line);background:#fffdf7;
+           font-size:10px;line-height:17px;text-align:center;color:#a89b85}
+  .slotpip.used{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:700}
+  .slotpip.over{background:#d99a9a;border-color:#b0473c;color:#fff;font-weight:700}
+  .learnedrow{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px dashed var(--line);
+              font-size:12.5px}
+  .learnedrow:last-child{border-bottom:none}
+  .learnedrow .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seasonpick{display:flex;gap:6px;flex-wrap:wrap}
+  .seasonpick .sp{padding:6px 14px;border-radius:9px;border:1px solid var(--line);background:#fffdf7;
+                  cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .seasonpick .sp.on{background:var(--teal);border-color:var(--teal);color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>📖</span>咒语书</div>
+  <div class="page-sub">记录你学会的魔法。每等级可学 2 个一般魔法，1-3 级学初级、4-6 级学中级、7 级以上学高级。</div>
+
+  <div id="expiryBanner"></div>
+
+  <div class="sb-head">
+    <div class="card">
+      <h2>🧙 施法者状态</h2>
+      <div id="casterBox"></div>
+      <div class="mpwrap" style="margin-top:12px">
+        <div class="mpbar" id="mpBar"><i id="mpFill" style="width:100%"></i></div>
+        <div class="mptext"><span id="mpLeft">—</span><span id="mpRight">—</span></div>
+      </div>
+      <div class="mpbtns">
+        <button class="sm" id="mpSub1" data-mp="-1">消耗 1 MP</button>
+        <button class="sm" id="mpSub2" data-mp="-2">消耗 2 MP</button>
+        <button class="sm" id="mpSub4" data-mp="-4">消耗 4 MP</button>
+        <button class="sm ghost" id="mpRest" data-mp="rest">休息（回满）</button>
+        <button class="sm ghost" id="mpSet" data-mp="set">直接设定…</button>
+      </div>
+      <div class="hint" style="margin-top:8px">MP 上限 = 精神 × 2（特长「许愿」再 +4）。「休息」把 MP 回满。</div>
+    </div>
+
+    <div class="sb-side">
+      <div class="card">
+        <h3>🪄 咒语栏位</h3>
+        <div id="slotBox"></div>
+      </div>
+      <div class="card">
+        <h3>🌦️ 季节魔法</h3>
+        <div id="seasonBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px" id="filterCard">
+    <h2>🔎 筛选</h2>
+    <div class="filterrow">
+      <label class="fld" style="margin:0;flex:1;min-width:200px"><span>搜索</span>
+        <input type="text" id="fq" placeholder="输入魔法名或效果关键词…"></label>
+      <label class="fld" style="margin:0"><span>咏唱</span>
+        <select id="fchant"><option value="all">全部咏唱</option></select></label>
+      <label class="fld" style="margin:0"><span>MP 消耗</span>
+        <select id="fmp">
+          <option value="all">全部</option>
+          <option value="0-2">2 点以下</option>
+          <option value="3-4">3 ~ 4 点</option>
+          <option value="5-6">5 ~ 6 点</option>
+          <option value="7-99">7 点以上</option>
+        </select></label>
+      <label class="fld" style="margin:0"><span>排序</span>
+        <select id="fsort">
+          <option value="no">编号</option>
+          <option value="mp">MP 由低到高</option>
+          <option value="mpdesc">MP 由高到低</option>
+          <option value="name">名称</option>
+        </select></label>
+    </div>
+    <div class="chipwrap" id="fquick" style="margin-top:10px"></div>
+    <div class="hint" id="fcount" style="margin-top:9px"></div>
+  </div>
+
+  <div class="sb-tabs" id="sbTabs"></div>
+  <div id="spellList"></div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/spellbook.js?v=61601b14"></script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

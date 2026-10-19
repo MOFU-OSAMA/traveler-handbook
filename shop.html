@@ -1,0 +1,598 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>商店 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>🛒</span>商店</div>
+  <div class="page-sub">道具价格与效果依据规则书道具章节。药草只有都市的药草店会贩卖，一般商家不会收购药草。</div>
+
+  <div id="expiryBanner"></div>
+
+  <div class="grid c2">
+    <div class="card">
+      <h2>💰 钱包</h2>
+      <div class="statgrid">
+        <div class="stat"><div class="k">金币</div><div class="v" id="moneyV" style="font-size:18px">—</div></div>
+        <div class="stat" id="sizeStat"><div class="k">持有尺寸</div><div class="v" id="sizeV">—</div></div>
+        <div class="stat"><div class="k">尺寸上限</div><div class="v" id="limitV">—</div></div>
+        <div class="stat" id="largeStat"><div class="k">大型容器</div><div class="v" id="largeV" style="font-size:15px">—</div></div>
+        <div class="stat"><div class="k">可驮尺寸</div><div class="v" id="carryV" style="font-size:15px">—</div></div>
+        <div class="stat"><div class="k">购物车</div><div class="v" id="cartV">0</div></div>
+      </div>
+      <div class="btnrow">
+        <button class="primary" id="btnCheckout">结算购物车</button>
+        <button class="ghost" id="btnClearCart">清空购物车</button>
+        <a class="btn ghost" href="bag.html">前往背包 →</a>
+      </div>
+      <div id="cartBox" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏷️ 道具特征（价格修正）</h2>
+      <div class="hint" style="margin-bottom:8px">
+        购买拥有特征的道具时，需要计算每种特征的价格修正。<b>先计算乘法（小数向上取整），其次计算加法。</b><br>
+        例：〈恶心而可爱、会走路的〉10 金币木箱 = 10 × 0.8 × 2 + 5000 = 5016 金币。
+      </div>
+      <div id="traitBox"></div>
+    </div>
+
+  </div>
+
+  <!-- 药草专柜 -->
+  <div class="card" style="margin-top:16px">
+    <h2>🌿 药草专柜<span class="hint" style="font-weight:400;margin-left:8px">（都市的药草店）</span></h2>
+    <div class="alert gold">
+      <span class="ico">⏳</span>
+      <div><b>保质期提醒</b>
+        采集或购买 <b>24 小时</b> 后，药草会腐坏，不能再使用。
+        若将药草装入〈<b>药草瓶</b>〉中，可以保存最多 <b>7 天</b>。
+        1 个药草只能发挥 1 次效果；战斗中使用药草需要花费 1 次行动；持有时药草的尺寸记为 1。
+      </div>
+    </div>
+
+<!-- 〈生意兴隆〉商人技能（规则书 p28） -->
+<div class="card" style="margin-top:16px" id="bizCard">
+  <h2>💹 生意兴隆<span class="hint" style="font-weight:400;margin-left:8px">商人技能 · 规则书 p28</span>
+    <span class="badge" id="bizSkillBadge" style="margin-left:auto">—</span></h2>
+  <div class="hint" style="margin-bottom:9px">
+    同时买卖 <b>至少 4 件相同的道具</b>时可以使用：掷【智力 + 精神】，按表 1 得出价格增减率 ——
+    <b>买入更便宜、卖出更贵</b>。购买时必须持有足以<b>按定价</b>购入的金币；判定失败交易也不会取消；
+    用〈生意兴隆〉买入的道具原则上<b>不能在同一城市卖出</b>。
+  </div>
+  <div id="bizBody"></div>
+</div>
+    <div class="filters">
+      <div class="chips" id="herbSysChips"></div>
+      <select id="herbLevel"><option value="all">全部等级</option>
+        <option value="1">等级 1</option><option value="2">等级 2</option><option value="3">等级 3</option>
+        <option value="4">等级 4（非卖品）</option><option value="5">等级 5（非卖品）</option></select>
+      <span class="badge green" id="herbCount">—</span>
+    </div>
+    <div class="grid c3" id="herbList"></div>
+    <details style="margin-top:14px">
+      <summary>各地貌可入手药草表（采集参考）</summary>
+      <div class="body">
+        <table class="tbl"><thead><tr><th>地貌</th><th>药草</th><th>系统</th></tr></thead><tbody>
+          <div id="terrainHerb"></div>
+        </tbody></table>
+        <div id="terrainHerbBox"></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 商店主表 -->
+  <div class="card" style="margin-top:16px">
+    <h2>📦 商品目录</h2>
+    <div class="filters">
+      <input type="text" id="q" placeholder="搜索道具名称或说明…">
+      <select id="cat"><option value="all">全部类别</option></select>
+      <select id="sort">
+        <option value="cat">按类别</option>
+        <option value="priceAsc">价格从低到高</option>
+        <option value="priceDesc">价格从高到低</option>
+        <option value="name">按名称</option>
+      </select>
+      <label class="inline hint"><input type="checkbox" id="hideUnaffordable"> 只看买得起的</label>
+      <span class="badge teal" id="countBadge">—</span>
+    </div>
+    <div class="grid c3" id="shopList"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>ℹ️ 买卖规则</h2>
+    <div class="grid c2">
+      <div><h3>购买</h3><div class="hint">支付与想要购买道具的价格等额的金币就可以获得道具。可以在城市的商店或旅行商人处购买道具。</div></div>
+      <div><h3>贩卖</h3><div class="hint">不需要的道具能够以购买价格的一半转手，但不能贩卖耐久度为 0 的〈损坏的〉道具。一般商家不会收购药草。</div></div>
+    </div>
+  </div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script>
+DE.ui.bootPage({ after: function () {
+  var c = DE.store.character;
+  var $ = DE.ui.$;
+  var cart = [];            // {kind:"item"|"herb", id, qty, traits:[]}
+  var herbSys = "all";
+
+  /* 类别下拉 */
+  $("#cat").innerHTML = '<option value="all">全部类别</option>' +
+    Object.keys(DE.CATEGORIES).filter(function (k) { return k !== "herb"; }).map(function (k) {
+      return '<option value="' + k + '">' + DE.CATEGORIES[k].label + "</option>";
+    }).join("");
+
+  /* 特征说明 */
+  function renderTraits() {
+    function tbl(list, title, note) {
+      return "<h3>" + title + "</h3>" + (note ? '<div class="hint" style="margin-bottom:5px">' + note + "</div>" : "") +
+        '<table class="tbl"><thead><tr><th>特征</th><th class="num">修正</th><th>效果</th></tr></thead><tbody>' +
+        list.map(function (t) {
+          return "<tr><td><b>" + DE.ui.esc(t.name) + "</b></td><td class='num'>" +
+            (t.mult ? "×" + t.mult : "+" + t.add) + "</td><td>" + DE.ui.esc(t.effect) + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    }
+    $("#traitBox").innerHTML =
+      tbl(DE.TRAITS.multiplier, "特征（乘法）") +
+      tbl(DE.TRAITS.material, "素材（乘法）") +
+      tbl(DE.TRAITS.magic, "魔法效果（加法）", "★ 在计算价格的最后添加价格加值，可以为持有道具追加魔法效果。");
+  }
+
+  /* ---------- 购物车 ---------- */
+  function cartKey(l) { return l.kind + ":" + l.id + ":" + (l.traits || []).join(","); }
+  function cartAdd(kind, id, traits) {
+    var key = kind + ":" + id + ":" + (traits || []).join(",");
+    var ex = cart.filter(function (l) { return cartKey(l) === key; })[0];
+    if (ex) ex.qty++;
+    else cart.push({ kind: kind, id: id, qty: 1, traits: (traits || []).slice() });
+    renderCart();
+  }
+  function unitPrice(l) {
+    if (l.kind === "herb") {
+      var h = DE.findHerb(l.id);
+      var pl = DE.HERB_RULES.priceByLevel.filter(function (x) { return x.level === h.level; })[0];
+      return pl ? pl.price : null;
+    }
+    return DE.calcTraitPrice(DE.findItem(l.id).price, l.traits);
+  }
+  function cartTotal() {
+    return cart.reduce(function (s, l) {
+      var u = unitPrice(l);
+      return s + (u == null ? 0 : u * l.qty);
+    }, 0);
+  }
+  function renderCart() {
+    $("#cartV").textContent = cart.reduce(function (s, l) { return s + l.qty; }, 0);
+    var total = cartTotal();
+    if (!cart.length) {
+      $("#cartBox").innerHTML = '<div class="hint">购物车是空的。点击商品卡片上的「加入购物车」开始采购。</div>';
+    } else {
+      $("#cartBox").innerHTML =
+        '<table class="tbl"><thead><tr><th>商品</th><th class="num">单价</th><th class="num">数量</th>' +
+        '<th class="num">小计</th><th></th></tr></thead><tbody>' +
+        cart.map(function (l, i) {
+          var u = unitPrice(l);
+          var nm = l.kind === "herb" ? DE.findHerb(l.id).name : DE.findItem(l.id).name;
+          return "<tr><td>" + DE.ui.esc(nm) +
+            (l.traits && l.traits.length ? "<br>" + l.traits.map(function (t) {
+              return DE.traitChip(t, true); }).join(" ") : "") +
+            "</td><td class='num'>" + (u == null ? "非卖品" : u) + "</td>" +
+            "<td class='num'><button class='sm ghost' data-dec='" + i + "'>−</button> " + l.qty +
+            " <button class='sm ghost' data-inc='" + i + "'>＋</button></td>" +
+            "<td class='num'>" + (u == null ? "—" : u * l.qty) + "</td>" +
+            "<td><button class='sm danger' data-del='" + i + "'>移除</button></td></tr>";
+        }).join("") +
+        '</tbody><tfoot><tr><th colspan="3">合计</th><th class="num">' + total + " G</th><th></th></tr></tfoot></table>" +
+        (c.money < total ? '<div class="alert red" style="margin-top:9px"><span class="ico">⚠️</span><div>金币不足：还差 ' +
+          (total - c.money) + " G。</div></div>" : "");
+    }
+    DE.ui.$$("[data-inc]").forEach(function (b) { b.onclick = function () { cart[+b.getAttribute("data-inc")].qty++; renderCart(); }; });
+    DE.ui.$$("[data-dec]").forEach(function (b) {
+      b.onclick = function () {
+        var i = +b.getAttribute("data-dec");
+        cart[i].qty--; if (cart[i].qty <= 0) cart.splice(i, 1);
+        renderCart();
+      };
+    });
+    DE.ui.$$("[data-del]").forEach(function (b) { b.onclick = function () { cart.splice(+b.getAttribute("data-del"), 1); renderCart(); }; });
+  }
+
+  /* ============================================================
+   *  〈生意兴隆〉面板（规则书 p28）
+   *  ============================================================ */
+  var bizId = "", bizBuy = 0, bizSell = 0, bizLast = null;
+
+  function bizCandidates() {
+    var out = [], seen = {};
+    (DE.ITEMS || []).forEach(function (d) {
+      if (d.isHerb || seen[d.id]) return;
+      if (DE.priceOf(d, []) == null) return;
+      seen[d.id] = 1;
+      out.push({ kind:"item", id:d.id, def:d, name:d.name, price:d.price || 0 });
+    });
+    (c.inventory || []).forEach(function (x) {
+      if (!x.itemId || seen[x.itemId]) return;
+      var d = DE.findItem(x.itemId);
+      if (!d) return;
+      seen[x.itemId] = 1;
+      out.push({ kind:"item", id:x.itemId, def:d, name:d.name, price:d.price || 0 });
+    });
+    out.sort(function (a, b) { return (b.price || 0) - (a.price || 0); });
+    return out;
+  }
+  function bizSelected() {
+    var L = bizCandidates();
+    return L.filter(function (o) { return o.id === bizId; })[0] || L[0] || null;
+  }
+
+  function renderBiz() {
+    var box = $("#bizBody");
+    if (!box) return;
+    var R = DE.BIZ_BOOM || {};
+    var has = DE.bizBoom.hasSkill(c);
+    var badge = $("#bizSkillBadge");
+    if (badge) {
+      badge.textContent = has ? "已学会" : "未学会";
+      badge.className = "badge " + (has ? "teal" : "");
+    }
+    var cands = bizCandidates();
+    if (!cands.length) { box.innerHTML = '<div class="hint">商店里没有可交易的道具。</div>'; return; }
+    var sel = bizSelected();
+    bizId = sel.id;
+
+    var baseBuy = DE.priceOf(sel.def, []) || 0;
+    var inst = (c.inventory || []).filter(function (x) { return x.itemId === sel.id; })[0];
+    var baseSell = Math.floor(((inst && inst.paidPrice != null ? inst.paidPrice : baseBuy) || 0) / 2);
+    var owned = DE.bizBoom.countOf(c, sel.id);
+
+    var chk = DE.bizBoom.canUse(c, { id: sel.id, def: sel.def, buyQty: bizBuy, sellQty: bizSell });
+    var rate = bizLast ? bizLast.roll.rate : 0;
+    var q = DE.bizBoom.quote(c, { id: sel.id, def: sel.def, buyQty: bizBuy, sellQty: bizSell, rate: rate });
+
+    box.innerHTML =
+      '<div class="row">' +
+        '<label class="fld" style="min-width:230px"><span>道具（相同的 1 种）</span><select id="bizItem">' +
+          cands.map(function (o) {
+            var pr = DE.priceOf(o.def, []);
+            var own = DE.bizBoom.countOf(c, o.id);
+            return '<option value="' + DE.ui.esc(o.id) + '"' + (o.id === bizId ? " selected" : "") + ">" +
+              DE.ui.esc(o.name) + "　定价 " + pr + " G" + (own ? "　（持有 " + own + "）" : "") + "</option>";
+          }).join("") + "</select></label>" +
+        '<label class="fld" style="max-width:126px"><span>买入数量</span>' +
+          '<input type="number" id="bizBuyQty" min="0" step="1" value="' + bizBuy + '"></label>' +
+        '<label class="fld" style="max-width:126px"><span>卖出数量</span>' +
+          '<input type="number" id="bizSellQty" min="0" step="1" value="' + bizSell + '"></label>' +
+        '<div style="align-self:flex-end;display:flex;gap:7px">' +
+          '<button class="primary" id="bizBtnRoll">🎲 判定并成交</button>' +
+          '<button class="ghost" id="bizBtnReset">重置</button>' +
+        "</div>" +
+      "</div>" +
+      '<div class="statgrid" style="margin-top:10px">' +
+        '<div class="stat"><div class="k">定价（买入基准）</div><div class="v" style="font-size:16px">' + baseBuy + " G</div></div>" +
+        '<div class="stat"><div class="k">一般售价（半价）</div><div class="v" style="font-size:16px">' + baseSell + " G</div></div>" +
+        '<div class="stat"><div class="k">持有件数</div><div class="v" style="font-size:16px">' + owned + "</div></div>" +
+        '<div class="stat"><div class="k">本次买卖</div><div class="v" style="font-size:16px">' +
+          (bizBuy + bizSell) + " / 需 ≥ " + (R.minCount || 4) + "</div></div>" +
+      "</div>" +
+      (chk.ok ? "" : '<div class="alert red" style="margin-top:9px"><span class="ico">⚠️</span><div>' +
+        chk.errors.map(function (t) { return DE.ui.esc(t); }).join("<br>") + "</div></div>") +
+      (bizLast
+        ? '<div class="alert teal" style="margin-top:9px"><span class="ico">💹</span><div><b>判定：' +
+            bizLast.roll.rolled.join(" + ") + " = " + bizLast.roll.sum +
+            (bizLast.roll.mod ? " " + (bizLast.roll.mod > 0 ? "+" : "") + bizLast.roll.mod : "") +
+            "　→　" + DE.ui.esc(bizLast.roll.label) + "</b>（价格增减率 " +
+            Math.round(bizLast.roll.rate * 100) + "%）<br>" +
+            bizLast.done.map(function (t) { return DE.ui.esc(t); }).join("<br>") + "</div></div>"
+        : '<div class="hint" style="margin-top:9px">买入单价 = 定价 ×（1 − 增减率）；' +
+          "卖出单价 = 一般售价 ×（1 + 增减率）。点「🎲 判定并成交」才掷骰。</div>") +
+      ((bizBuy || bizSell)
+        ? '<div class="hint" style="margin-top:9px">' +
+            (bizBuy ? "花费 <b>" + q.cost + " G</b>（定价共 " + q.costBase + "，省 " + q.saved + "）" : "") +
+            (bizBuy && bizSell ? "　·　" : "") +
+            (bizSell ? "收入 <b>" + q.gain + " G</b>（一般价共 " + q.gainBase + "，多赚 " + q.extra + "）" : "") +
+            "　·　净变化 <b>" + (q.net >= 0 ? "+" : "") + q.net + " G</b>" +
+            "　·　成交后金币 <b>" + q.moneyAfter + " G</b>" +
+            (c.tradeBan && c.tradeBan.id === sel.id
+              ? '<br><span style="color:#b0473c">注意：这件是上次用〈生意兴隆〉买进的，同一城市不能再卖。</span>'
+              : "") +
+          "</div>"
+        : "");
+
+    $("#bizItem").onchange = function () { bizId = this.value; bizLast = null; renderBiz(); };
+    $("#bizBuyQty").oninput = function () { bizBuy = Math.max(0, parseInt(this.value, 10) || 0); bizLast = null; renderBiz(); };
+    $("#bizSellQty").oninput = function () { bizSell = Math.max(0, parseInt(this.value, 10) || 0); bizLast = null; renderBiz(); };
+    $("#bizBtnReset").onclick = function () { bizBuy = 0; bizSell = 0; bizLast = null; renderBiz(); };
+    $("#bizBtnRoll").onclick = function () {
+      var o = bizSelected();
+      if (!o) return;
+      var res = DE.bizBoom.execute(c, { id:o.id, def:o.def, buyQty:bizBuy, sellQty:bizSell });
+      if (!res.ok) { DE.ui.toast(res.msg, "err"); return; }
+      bizLast = res;
+      DE.ui.toast("〈生意兴隆〉" + res.roll.label + "：增减率 " + Math.round(res.roll.rate * 100) + "%", "ok");
+      renderAll();
+    };
+  }
+
+  $("#btnClearCart").onclick = function () { cart = []; renderCart(); DE.ui.toast("购物车已清空。", ""); };
+  $("#btnCheckout").onclick = function () {
+    if (!cart.length) { DE.ui.toast("购物车是空的。", "err"); return; }
+    var total = cartTotal();
+    if (c.money < total) { DE.ui.toast("金币不足：需要 " + total + " G。", "err"); return; }
+    var msgs = [], failed = [];
+    cart.forEach(function (l) {
+      for (var i = 0; i < l.qty; i++) {
+        var r;
+        var def = l.kind === "herb" ? DE.findHerbDef(l.id) : DE.findItem(l.id);
+        r = DE.buy(c, def, { qty: 1, traits: l.traits, collectedISO: (DE.gameISO ? DE.gameISO() : new Date().toISOString()) });
+        if (r.ok) msgs.push(def.name); else failed.push(r.msg);
+      }
+    });
+    DE.save(c);
+    if (failed.length) DE.ui.toast("部分商品未能购买：" + failed.slice(0, 3).join("；"), "err");
+    else DE.ui.toast("已购买 " + msgs.length + " 件商品，共花费 " + total + " G。", "ok");
+    cart = [];
+    renderAll();
+  };
+
+  /* ---------- 药草列表 ---------- */
+  function renderHerbChips() {
+    var syss = ["all"].concat(Object.keys(DE.HERB_SYSTEMS));
+    $("#herbSysChips").innerHTML = syss.map(function (s) {
+      var label = s === "all" ? "全部系统" : s;
+      return '<span class="chip' + (herbSys === s ? " active" : "") + '" data-sys="' + s + '">' + label + "</span>";
+    }).join("");
+    DE.ui.$$("#herbSysChips .chip").forEach(function (ch) {
+      ch.onclick = function () { herbSys = ch.getAttribute("data-sys"); renderHerbs(); };
+    });
+  }
+  function renderHerbs() {
+    renderHerbChips();
+    var lv = ($("#herbLevel") && $("#herbLevel").value) || "all";
+    var list = DE.HERBS.filter(function (h) {
+      if (herbSys !== "all" && h.system !== herbSys) return false;
+      if (lv !== "all" && String(h.level) !== lv) return false;
+      return true;
+    });
+    $("#herbCount").textContent = "共 " + list.length + " 种";
+    if (!list.length) { $("#herbList").innerHTML = '<div class="empty">没有符合条件的药草。</div>'; return; }
+    $("#herbList").innerHTML = list.map(function (h) {
+      var hd = DE.findHerbDef(h.id);
+      var pl = { price: hd.price, priceText: hd.priceText };
+      var sellable = hd.sellable;
+      var cls = h.system === "精神系" ? "mind" : (h.system === "魔法系" ? "magicb" : "body");
+      return '<div class="itemcard">' +
+        '<div class="top"><span class="nm">' + DE.ui.esc(h.name) + "</span>" +
+        '<span class="price">' + (sellable ? pl.price + " G" : "非卖品") + "</span></div>" +
+        '<div class="meta"><span class="badge ' + cls + '">' + DE.ui.esc(h.system) + "</span>" +
+        '<span class="badge gold">等级 ' + h.level + "</span>" +
+        '<span class="badge">' + DE.ui.esc(h.terrain) + "</span>" +
+        '<span class="badge">药用部位：' + DE.ui.esc(h.part) + "</span>" +
+        '<span class="badge green">尺寸 ' + DE.HERB_RULES.size + "</span></div>" +
+        '<div class="desc"><b>效果：</b>' + DE.ui.esc(h.effect) + "</div>" +
+        '<div class="desc" style="color:#8a7f6c">' + DE.ui.esc(h.desc) + "</div>" +
+        '<div class="btnrow"><button class="sm primary"' + (sellable ? "" : " disabled") +
+        ' data-buyherb="' + h.id + '">' + (sellable ? "购买并放入背包" : "非卖品（需采集）") + "</button></div></div>";
+    }).join("");
+    DE.ui.$$("[data-buyherb]").forEach(function (b) {
+      b.onclick = function () {
+        var def = DE.findHerbDef(b.getAttribute("data-buyherb"));
+        if (!def.sellable) {
+          DE.ui.toast("〈" + def.name + "〉是非卖品，只能在对应地貌（" + (def.terrain || "特定地貌") + "）采集。", "err");
+          return;
+        }
+        var r = DE.buy(c, def, { qty: 1, collectedISO: (DE.gameISO ? DE.gameISO() : new Date().toISOString()) });
+        if (!r.ok) { DE.ui.toast(r.msg, "err"); return; }
+        var inst = r.instances[0];
+        var holder = inst.containerId ? DE.findInstance(c, inst.containerId) : null;
+        DE.ui.toast(r.msg + " " + (holder
+            ? "已自动装入〈" + holder.name + "〉，保质期延长至 " + DE.HERB_RULES.bottleDays + " 天。"
+            : "⚠ 未装瓶，采买后 " + DE.HERB_RULES.freshHours + " 小时内会腐坏，建议先买〈药草瓶〉。"),
+          holder ? "ok" : "");
+        renderAll();
+      };
+    });
+  }
+  $("#herbLevel").addEventListener("change", renderHerbs);
+
+  /* 地貌药草表 */
+  $("#terrainHerbBox").innerHTML =
+    '<table class="tbl"><thead><tr><th>地貌</th><th>药草</th><th>系统</th></tr></thead><tbody>' +
+    DE.HERB_BY_TERRAIN.map(function (r) {
+      return "<tr><td>" + DE.ui.esc(r.terrain) + "</td><td>" + DE.ui.esc(r.name) + "</td><td>" +
+        DE.ui.esc(r.system) + "</td></tr>";
+    }).join("") + "</tbody></table>";
+
+  /* ---------- 商品目录 ---------- */
+  function renderShop() {
+    var q = (($("#q") && $("#q").value) || "").toLowerCase();
+    var cat = ($("#cat") && $("#cat").value) || "all";
+    var sort = ($("#sort") && $("#sort").value) || "cat";
+    var hide = !!($("#hideUnaffordable") && $("#hideUnaffordable").checked);
+    var list = DE.ITEMS.filter(function (it) { return it.cat !== "herb"; });
+    if (cat !== "all") list = list.filter(function (it) { return it.cat === cat; });
+    if (q) list = list.filter(function (it) {
+      return (it.name + " " + (it.desc || "")).toLowerCase().indexOf(q) >= 0;
+    });
+    if (hide) list = list.filter(function (it) { return it.price <= c.money; });
+    list.sort(function (a, b) {
+      if (sort === "priceAsc") return a.price - b.price;
+      if (sort === "priceDesc") return b.price - a.price;
+      if (sort === "name") return a.name.localeCompare(b.name, "zh-CN");
+      return a.cat.localeCompare(b.cat) || a.price - b.price;
+    });
+    $("#countBadge").textContent = "共 " + list.length + " 项";
+    if (!list.length) { $("#shopList").innerHTML = '<div class="empty">没有符合条件的商品。</div>'; return; }
+
+    var rows = list.map(function (it) {
+      var afford = c.money >= it.price;
+      var spec = [];
+      if (it.hit) spec.push('<span class="badge">命中 ' + DE.ui.esc(it.hit) + "</span>");
+      if (it.dmg) spec.push('<span class="badge">伤害 ' + DE.ui.esc(it.dmg) + "</span>");
+      if (it.def !== undefined && it.cat === "armor") spec.push('<span class="badge">防御点 ' + it.def + "</span>");
+      if (it.block) spec.push('<span class="badge">格挡 ' + it.block + "</span>");
+      if (it.penalty) spec.push('<span class="badge red">减值 ' + it.penalty + "</span>");
+      if (it.capacity) spec.push('<span class="badge teal">容量 ' + it.capacity + "</span>");
+      if (it.herbCapacity) spec.push('<span class="badge green">可存药草 ' + it.herbCapacity + " 个</span>");
+      if (it.holdsWater) spec.push('<span class="badge">可装水</span>');
+      if (it.bonus && it.bonus !== "—") spec.push('<span class="badge gold">' + DE.ui.esc(it.bonus) + "</span>");
+
+      /* ---- 容器种类适配（规则书 p51）---- */
+      if (it.cat === "large") spec.push('<span class="badge" style="background:#e8eef7">大型容器 · 只能带 1 个</span>');
+      if (it.holdsWater) spec.push('<span class="badge">可装水 ' + (it.waterDays || 1) + " 天份</span>");
+      if (it.special === "oneOnly") spec.push('<span class="badge">腰上只能别一个</span>');
+      if (it.penaltyNote) spec.push('<span class="badge red">携带时移动判定 -1</span>');
+      if (it.animal === "驮货") spec.push('<span class="badge teal">可驮 ' + (it.carryCapacity || 0) + " 点 · 可搬多个大型容器</span>");
+      if (it.animal === "骑乘") spec.push('<span class="badge">可骑乘 ' + (it.rideCapacity || 1) + " 人</span>");
+
+      /* 大型容器前置校验：已经满了就先把按钮禁掉并说明，别让玩家点了才知道 */
+      var blockMsg = "";
+      if (it.cat === "large" && DE.largeContainerCount(c) >= DE.largeContainerLimit(c)) {
+        blockMsg = "每名角色行走时只能持有 1 个大型容器（木箱 / 水桶 / 背包）。" +
+                   "带一只〈驮货用动物〉可以让它帮你搬多个。";
+      }
+      var canBuy = afford && !blockMsg;
+
+      return '<div class="itemcard">' +
+        '<div class="top"><span class="nm">' + DE.ui.esc(it.name) + "</span>" +
+        '<span class="price">' + (it.priceText || it.price) + " G</span></div>" +
+        '<div class="meta"><span class="badge">' + DE.ui.esc(DE.CATEGORIES[it.cat].label) + "</span>" +
+        '<span class="badge">尺寸 ' + (it.sizeText || it.size) + "</span>" +
+        (it.hand ? '<span class="badge">' + DE.ui.esc(it.hand) + "</span>" : "") +
+        (it.durability ? '<span class="badge">耐久 ' + (it.durability || "-") + "</span>" : "") +
+        spec.join("") + "</div>" +
+        (it.contents ? '<div class="desc"><b>套装内容：</b>' + DE.ui.esc(it.contents) + "</div>" : "") +
+        '<div class="desc">' + DE.ui.esc(it.desc) + "</div>" +
+        (blockMsg ? '<div class="alert gold" style="margin-top:8px"><span class="ico">📦</span><div>' +
+                     DE.ui.esc(blockMsg) + "</div></div>" : "") +
+        '<div class="btnrow">' +
+          '<button class="sm primary" data-buy="' + it.id + '"' + (canBuy ? "" : " disabled") + ">" +
+            (blockMsg ? "大型容器已满" : "直接购买") + "</button>" +
+          '<button class="sm ghost" data-cart="' + it.id + '"' + (blockMsg ? " disabled" : "") + ">加入购物车</button>" +
+          '<button class="sm ghost" data-traits="' + it.id + '">带特征购买…</button>' +
+        "</div></div>";
+    }).join("");
+    $("#shopList").innerHTML = '<div class="grid c3">' + rows + "</div>";
+
+    DE.ui.$$("[data-buy]").forEach(function (b) {
+      b.onclick = function () {
+        var def = DE.findItem(b.getAttribute("data-buy"));
+        var r = DE.buy(c, def, { qty: 1 });
+        var msg = r.msg;
+        if (r.ok && def) {
+          /* 容器 / 动物买完说清楚它在哪儿、有什么规则 */
+          if (def.cat === "large") msg += " 已放入背包的「大型容器」区。";
+          else if (def.cat === "container") msg += " 已放入背包的「小型容器」区。";
+          else if (def.cat === "animal" && def.animal === "驮货")
+            msg += " 现在可以带多个大型容器了（可驮 " + (def.carryCapacity || 0) + " 点）。";
+        }
+        DE.ui.toast(msg, r.ok ? "ok" : "err");
+        renderAll();
+      };
+    });
+    DE.ui.$$("[data-cart]").forEach(function (b) {
+      b.onclick = function () {
+        cartAdd("item", b.getAttribute("data-cart"), []);
+        DE.ui.toast("已加入购物车。", "");
+      };
+    });
+    DE.ui.$$("[data-traits]").forEach(function (b) {
+      b.onclick = function () { traitDialog(DE.findItem(b.getAttribute("data-traits"))); };
+    });
+  }
+
+  /* 带特征购买弹窗 */
+  function traitDialog(it) {
+    var chosen = [];
+    var all = DE.ALL_TRAITS();
+    function price() { return DE.calcTraitPrice(it.price, chosen); }
+    var ov = DE.ui.el("div", { style: "position:fixed;inset:0;background:rgba(40,32,22,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px" });
+    function draw() {
+      ov.innerHTML = '<div class="card" style="max-width:560px;width:100%;max-height:86vh;overflow:auto;margin:0">' +
+        "<h2>为〈" + DE.ui.esc(it.name) + "〉选择特征</h2>" +
+        '<div class="hint" style="margin-bottom:10px">基础价格 ' + it.price + " G。先乘法（向上取整）后加法。</div>" +
+        '<div class="chips">' + all.map(function (t) {
+          var on = chosen.indexOf(t.name) >= 0;
+          return '<span class="chip' + (on ? " active" : "") + '" data-t="' + DE.ui.esc(t.name) + '" title="' +
+            DE.ui.esc(t.effect) + '">' + DE.ui.esc(t.name) + " " + (t.mult ? "×" + t.mult : "+" + t.add) + "</span>";
+        }).join("") + "</div>" +
+        '<div class="alert teal" style="margin-top:12px"><span class="ico">💰</span><div>最终价格：<b style="font-size:17px">' +
+          price() + " G</b>" + (c.money < price() ? "　<span style='color:#b0473c'>（金币不足）</span>" : "") + "</div></div>" +
+        '<div class="btnrow" style="justify-content:flex-end"><button class="ghost" data-x="0">取消</button>' +
+        '<button class="primary" data-x="1">购买</button></div></div>';
+      DE.ui.$$("[data-t]", ov).forEach(function (ch) {
+        ch.onclick = function () {
+          var n = ch.getAttribute("data-t"), i = chosen.indexOf(n);
+          if (i >= 0) chosen.splice(i, 1); else chosen.push(n);
+          draw();
+        };
+      });
+      DE.ui.$$("[data-x]", ov).forEach(function (b) {
+        b.onclick = function () {
+          if (b.getAttribute("data-x") === "0") { document.body.removeChild(ov); return; }
+          var r = DE.buy(c, it, { qty: 1, traits: chosen });
+          document.body.removeChild(ov);
+          DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+          renderAll();
+        };
+      });
+    }
+    draw(); document.body.appendChild(ov);
+  }
+
+  $("#q").addEventListener("input", renderShop);
+  $("#cat").addEventListener("change", renderShop);
+  $("#sort").addEventListener("change", renderShop);
+  $("#hideUnaffordable").addEventListener("change", renderShop);
+
+  function renderAll() {
+    renderBiz();
+    var s = DE.char.summary(c);
+    $("#moneyV").textContent = c.money + " G";
+    $("#sizeV").textContent = s.sizeUsed;
+    $("#limitV").textContent = s.sizeLimit;
+    $("#sizeStat").className = "stat" + (s.sizeOver ? " warn" : "");
+
+    /* 容器规则状态（规则书 p51）—— 买之前就知道还能不能带 */
+    var groups = DE.containerGroups(c);
+    var lLimit = DE.largeContainerLimit(c);
+    var largeText = (lLimit === Infinity)
+      ? groups.large.length + " / ∞"
+      : groups.large.length + " / " + lLimit;
+    var lv = $("#largeV"), ls = $("#largeStat");
+    if (lv) lv.textContent = largeText;
+    if (ls) ls.className = "stat" + (lLimit !== Infinity && groups.large.length >= lLimit ? " warn" : "");
+    var cv = $("#carryV");
+    if (cv) cv.textContent = DE.carryCapacityOf(c) || "—";
+    renderCart(); renderHerbs(); renderShop();
+    DE.ui.expiryBanner($("#expiryBanner"));
+  }
+  DE.onTick = renderAll;
+  renderTraits();
+  renderAll();
+}});
+</script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

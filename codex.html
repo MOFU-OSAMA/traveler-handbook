@@ -1,0 +1,360 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>图鉴 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>📖</span>图鉴与规则速查</div>
+  <div class="page-sub">道具 · 药草 · 魔法 · 职业 · 特长 · 车卡流程 · 旅行规则</div>
+
+  <div class="chips" id="tabs" style="margin-bottom:16px"></div>
+  <div id="pane"></div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script>
+DE.ui.bootPage({ after: function () {
+  var $ = DE.ui.$;
+  var tab = "items";
+
+  var TABS = [
+    { id:"items",   label:"📦 道具全表" },
+    { id:"herbs",   label:"🌿 药草" },
+    { id:"magic",   label:"✨ 咒语魔法" },
+    { id:"season",  label:"🍂 季节魔法" },
+    { id:"prof",    label:"🎭 职业与技能" },
+    { id:"talent",  label:"💪 特长" },
+    { id:"chagen",  label:"🧾 车卡流程" },
+    { id:"travel",  label:"🧭 旅行规则" }
+  ];
+
+  function renderTabs() {
+    $("#tabs").innerHTML = TABS.map(function (t) {
+      return '<span class="chip' + (tab === t.id ? " active" : "") + '" data-tab="' + t.id + '">' + t.label + "</span>";
+    }).join("");
+    DE.ui.$$("[data-tab]").forEach(function (c) {
+      c.onclick = function () { tab = c.getAttribute("data-tab"); render(); window.scrollTo({top:0,behavior:"smooth"}); };
+    });
+  }
+
+  /* ---------- 道具全表 ---------- */
+  function paneItems() {
+    var groups = {};
+    DE.ITEMS.forEach(function (it) {
+      (groups[it.cat] = groups[it.cat] || []).push(it);
+    });
+    var order = ["weapon","armor","shield","shoes","cloak","cane","hat","other","container","large",
+                 "food","daily","camp","animal","set"];
+    var html = '<div class="card"><h2>📦 道具全表</h2>' +
+      '<div class="hint" style="margin-bottom:12px">' +
+      "价格与效果依据规则书道具章节 p44-p53。尺寸分为 1/3/5 三种；装备栏中的道具尺寸视为 0。</div>";
+    order.forEach(function (cat) {
+      var list = groups[cat];
+      if (!list || !list.length) return;
+      var C = DE.CATEGORIES[cat];
+      html += "<h3>" + C.icon + " " + C.label + "（" + list.length + "）</h3>" +
+        '<table class="tbl"><thead><tr><th>名称</th><th class="num">价格</th><th class="num">尺寸</th>' +
+        "<th>关键数值</th><th>效果与说明</th></tr></thead><tbody>" +
+        list.map(function (it) {
+          var spec = [];
+          if (it.hit) spec.push("命中 " + it.hit);
+          if (it.dmg) spec.push("伤害 " + it.dmg);
+          if (it.def !== undefined && it.cat === "armor") spec.push("防御点 " + it.def);
+          if (it.block) spec.push("格挡力 " + it.block);
+          if (it.penalty) spec.push("减值 " + it.penalty);
+          if (it.capacity) spec.push("容量 " + it.capacity);
+          if (it.herbCapacity) spec.push("可存药草 " + it.herbCapacity + " 个");
+          if (it.bonus && it.bonus !== "—") spec.push(it.bonus);
+          if (it.durability) spec.push("耐久 " + it.durability);
+          return "<tr><td><b>" + DE.ui.esc(it.name) + "</b></td>" +
+            "<td class='num'>" + (it.priceText || it.price) + "</td>" +
+            "<td class='num'>" + (it.sizeText || (it.size === 0 ? "—" : it.size)) + "</td>" +
+            "<td style='font-size:12.5px'>" + DE.ui.esc(spec.join("　")) + "</td>" +
+            "<td style='font-size:12.5px'>" + DE.ui.esc(it.desc || "") +
+              (it.contents ? "<br><b>套装内容：</b>" + DE.ui.esc(it.contents) : "") + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    });
+    /* 特征表 */
+    html += "<h3>🏷️ 道具特征</h3><table class='tbl'><thead><tr><th>特征</th><th class='num'>修正</th><th>效果</th></tr></thead><tbody>" +
+      DE.ALL_TRAITS().map(function (t) {
+        return "<tr><td><b>" + DE.ui.esc(t.name) + "</b></td><td class='num'>" +
+          (t.mult ? "×" + t.mult : "+" + t.add) + "</td><td style='font-size:12.5px'>" +
+          DE.ui.esc(t.effect) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      '<div class="hint" style="margin-top:10px">计算多种特征的价格时，首先计算乘法（小数向上取整），其次计算加法。</div>';
+    /* 动物特征 */
+    html += "<h3>🐴 动物的特征</h3><table class='tbl'><thead><tr><th>特征</th><th class='num'>修正</th><th>效果</th></tr></thead><tbody>" +
+      DE.ANIMAL_TRAITS.map(function (t) {
+        return "<tr><td><b>" + DE.ui.esc(t.name) + "</b></td><td class='num'>" +
+          (t.mult ? "×" + t.mult : "+" + t.add) + "</td><td style='font-size:12.5px'>" +
+          DE.ui.esc(t.effect) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      '<div class="hint" style="margin-top:10px">' +
+      [DE.ANIMAL_RULES.freeFeed, DE.ANIMAL_RULES.extraFeed, DE.ANIMAL_RULES.trainerBonus, DE.ANIMAL_RULES.harshTerrain]
+        .map(DE.ui.esc).join("<br>") + "</div>";
+    html += "</div>";
+    return html;
+  }
+
+  /* ---------- 药草 ---------- */
+  function paneHerbs() {
+    var bySys = {};
+    DE.HERBS.forEach(function (h) { (bySys[h.system] = bySys[h.system] || []).push(h); });
+    var html = '<div class="card"><h2>🌿 药草</h2>' +
+      '<div class="alert gold"><span class="ico">⏳</span><div><b>保质期（重要）</b>' +
+      "采集或购买 <b>" + DE.HERB_RULES.freshHours + " 小时</b> 后，药草会腐坏，不能再使用。" +
+      "若将药草装入〈药草瓶〉中，可以保存最多 <b>" + DE.HERB_RULES.bottleDays + " 天</b>（最多 " +
+      DE.HERB_RULES.bottleCapacity + " 个）。" +
+      DE.ui.esc(DE.HERB_RULES.note) + "<br>" + DE.ui.esc(DE.HERB_RULES.actionCost) +
+      "；持有时药草的尺寸记为 " + DE.HERB_RULES.size + "。<br>" + DE.ui.esc(DE.HERB_RULES.magicNote) +
+      "</div></div>" +
+      "<h3>市场价格</h3><table class='tbl'><thead><tr><th>等级</th><th class='num'>价格（金币）</th></tr></thead><tbody>" +
+      DE.HERB_RULES.priceByLevel.map(function (p) {
+        return "<tr><td>等级 " + p.level + "</td><td class='num'>" +
+          (p.price == null ? p.priceText : p.price) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+
+    Object.keys(bySys).forEach(function (sys) {
+      var list = bySys[sys];
+      var cls = sys === "精神系" ? "mind" : (sys === "魔法系" ? "magicb" : "body");
+      html += "<h3><span class='badge " + cls + "'>" + sys + "</span>（" + list.length + " 种）</h3>" +
+        "<table class='tbl'><thead><tr><th>名称</th><th class='num'>等级</th><th>地貌</th><th>药用部位</th>" +
+        "<th>使用效果</th><th>植物介绍</th></tr></thead><tbody>" +
+        list.map(function (h) {
+          return "<tr><td><b>" + DE.ui.esc(h.name) + "</b></td><td class='num'>" + h.level +
+            "</td><td>" + DE.ui.esc(h.terrain) + "</td><td>" + DE.ui.esc(h.part) +
+            "</td><td style='font-size:12.5px'>" + DE.ui.esc(h.effect) +
+            "</td><td style='font-size:12.5px;color:#8a7f6c'>" + DE.ui.esc(h.desc) + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    });
+
+    html += "<h3>各地貌可入手药草表</h3><table class='tbl'><thead><tr><th>地貌</th><th>药草</th><th>系统</th></tr></thead><tbody>" +
+      DE.HERB_BY_TERRAIN.map(function (r) {
+        return "<tr><td>" + DE.ui.esc(r.terrain) + "</td><td>" + DE.ui.esc(r.name) +
+          "</td><td>" + DE.ui.esc(r.system) + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+    return html;
+  }
+
+  /* ---------- 魔法 ---------- */
+  function magicTable(list, kind) {
+    return "<table class='tbl'><thead><tr>" +
+      (kind === "season" ? "<th>季节</th>" : "") +
+      "<th class='num'>序号</th><th>魔法名称</th><th>等级</th><th>咏唱</th><th class='num'>MP</th>" +
+      "<th>效果时间</th><th>目标</th><th>距离</th><th>效果</th></tr></thead><tbody>" +
+      list.map(function (m) {
+        return "<tr>" + (kind === "season" ? "<td>" + DE.ui.esc(m.season) + "</td>" : "") +
+          "<td class='num'>" + m.no + "</td><td><b>" + DE.ui.esc(m.name) + "</b></td>" +
+          "<td>" + DE.ui.esc(m.level) + "</td><td>" + DE.ui.esc(m.chant) + "</td>" +
+          "<td class='num'>" + m.mp + "</td><td>" + DE.ui.esc(m.duration) + "</td>" +
+          "<td>" + DE.ui.esc(m.target) + "</td><td>" + DE.ui.esc(m.range) + "</td>" +
+          "<td style='font-size:12.5px'>" + DE.ui.esc(m.effect) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  }
+  function paneMagic() {
+    return '<div class="card"><h2>✨ 咒语魔法（一般魔法）</h2>' +
+      '<div class="hint" style="margin-bottom:12px">' + DE.ui.esc(DE.MAGIC_LEVEL_RULE.general) +
+      "<br>需要「咒语书」特长：每等级获得 2 个咒语魔法。</div>" +
+      magicTable(DE.GENERAL_MAGIC, "general") + "</div>";
+  }
+  function paneSeason() {
+    var seasons = ["春","夏","秋","冬"];
+    var html = '<div class="card"><h2>🍂 季节魔法</h2>' +
+      '<div class="hint" style="margin-bottom:12px">' + DE.ui.esc(DE.MAGIC_LEVEL_RULE.seasonal) +
+      "<br>需要「季节之法」特长。</div>";
+    seasons.forEach(function (s) {
+      html += "<h3>" + s + "（" + DE.SEASONAL_MAGIC.filter(function (m) { return m.season === s; }).length + " 个）</h3>" +
+        magicTable(DE.SEASONAL_MAGIC.filter(function (m) { return m.season === s; }), "season");
+    });
+    return html + "</div>";
+  }
+
+  /* ---------- 职业 ---------- */
+  function paneProf() {
+    var html = '<div class="card"><h2>🎭 职业与技能</h2>' +
+      '<div class="hint" style="margin-bottom:12px">本游戏中的 7 种「职业」代表着角色的身份与地位。选择完毕后，可以获得该职业的 3 个特殊「技能」。</div>';
+    DE.PROFESSIONS.forEach(function (p) {
+      html += "<h3>" + DE.ui.esc(p.name) +
+        (p.beginner ? " <span class='badge green'>新手推荐</span>" : "") +
+        (p.expansion ? " <span class='badge gold'>扩展</span>" : "") + "</h3>" +
+        '<div class="hint" style="margin-bottom:6px">' + DE.ui.esc(p.role) + "</div>" +
+        "<table class='tbl'><thead><tr><th>技能</th><th>使用能力值</th><th>目标值</th><th>效果</th></tr></thead><tbody>" +
+        p.skills.map(function (n) {
+          var d = DE.PROFESSION_SKILLS[n] || { ability:"—", target:"—", effect:"" };
+          return "<tr><td><b>" + DE.ui.esc(n) + "</b></td><td>" + DE.ui.esc(d.ability) +
+            "</td><td>" + DE.ui.esc(d.target) + "</td>" +
+            "<td style='font-size:12.5px;white-space:pre-wrap'>" + DE.ui.esc(d.effect) + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    });
+    return html + "</div>";
+  }
+
+  /* ---------- 特长 ---------- */
+  function paneTalent() {
+    var html = '<div class="card"><h2>💪 特长</h2>' +
+      '<div class="hint" style="margin-bottom:12px">特长表示角色处理旅途中遭遇的事件或各种危险的能力。请从 3 种特长中选择 1 种。</div>';
+    DE.TYPES.forEach(function (t) {
+      html += "<h3>" + DE.ui.esc(t.name) + "型</h3>" +
+        '<div class="hint" style="margin-bottom:6px">' + DE.ui.esc(t.desc) + "</div>" +
+        "<table class='tbl'><thead><tr><th>能力值</th><th>效果</th></tr></thead><tbody>" +
+        t.abilities.map(function (a) {
+          var d = DE.TALENT_ABILITIES[a] || { effect:"" };
+          return "<tr><td><b>" + DE.ui.esc(a) + "</b></td><td style='font-size:12.5px'>" +
+            DE.ui.esc(d.effect) + "</td></tr>";
+        }).join("") + "</tbody></table>";
+      });
+    html += "<h3>等级提升（最高 " + DE.LEVELUP.maxLevel + " 级）</h3>" +
+      "<div class='hint' style='margin-bottom:8px'>" + DE.ui.esc(DE.LEVELUP.howTo) +
+      "<br>" + DE.ui.esc(DE.LEVELUP.abilityIncrease) + "</div>" +
+      "<table class='tbl'><thead><tr><th class='num'>等级</th><th class='num'>需要经验</th><th>新能力</th></tr></thead><tbody>" +
+      DE.LEVELUP.table.map(function (r) {
+        return "<tr><td class='num'>" + r.level + "</td><td class='num'>" + r.minExp +
+          "</td><td style='font-size:12.5px'>" + DE.ui.esc(r.newAbility) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      "<h3>经验值来源</h3><div class='hint' style='margin-bottom:8px'>" +
+      DE.ui.esc(DE.LEVELUP.expFormula).replace(/\n/g, "<br>") + "</div>" +
+      "<table class='tbl'><thead><tr><th>最高目标值（地貌+天气）</th><th class='num'>经验</th></tr></thead><tbody>" +
+      DE.LEVELUP.expSource.map(function (e) {
+        return "<tr><td>" + DE.ui.esc(e.maxTargetValue) + "</td><td class='num'>" + e.exp + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      "<h3>升级奖励</h3><div class='hint'>" +
+      DE.LEVELUP.rewards.map(function (g) { return "・" + g; }).join("<br>") + "</div>";
+    return html + "</div>";
+  }
+
+  /* ---------- 车卡流程 ---------- */
+  function paneChagen() {
+    var html = '<div class="card"><h2>🧾 车卡流程</h2>';
+    html += DE.CHAR_STEPS.map(function (s) {
+      return "<h3>步骤 " + s.n + "：" + DE.ui.esc(s.title) + "</h3>" +
+        '<div class="hint" style="margin-bottom:10px">' + DE.ui.esc(s.detail) + "</div>";
+    }).join("");
+
+    html += "<h3>三种能力值组合</h3><table class='tbl'><thead><tr><th>组合</th><th>数值</th><th>说明</th></tr></thead><tbody>" +
+      DE.ABILITY_SETS.map(function (s) {
+        return "<tr><td><b>" + DE.ui.esc(s.name) + "</b></td><td>" + s.values.join(" / ") +
+          "</td><td style='font-size:12.5px'>" + DE.ui.esc(s.desc) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      '<div class="hint" style="margin-top:8px">能力值需要在“4、6、8、10、12”中选择一个数字来代表，但制作角色时只能从“4、6、8”中选择。' +
+      "数值即骰子面数，例如〖体力：6〗的角色使用体力进行判定时需要投掷 6 面骰。</div>";
+
+    html += "<h3>武器种类（命中 / 伤害）</h3><table class='tbl'><thead><tr><th>武器</th><th>包含</th>" +
+      "<th>命中</th><th>伤害</th><th>说明</th></tr></thead><tbody>" +
+      DE.WEAPONS_CHAR.map(function (w) {
+        return "<tr><td><b>" + DE.ui.esc(w.name) + "</b></td><td style='font-size:12.5px'>" +
+          DE.ui.esc(w.includes) + "</td><td><b>" + DE.ui.esc(w.hit) + "</b></td><td><b>" +
+          DE.ui.esc(w.dmg) + "</b></td><td style='font-size:12.5px'>" + DE.ui.esc(w.note + " " + w.hand) + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      "<div class='hint' style='margin-top:8px'>使用不是【擅长武器】的武器进行攻击时，每进行 1 次攻击，生命点数会减少 1 点。因为不熟练的武器会让人格外疲劳。</div>";
+
+    html += "<h3>队伍职责（组队后分配）</h3><div class='hint'>请在制作完角色、组成队伍踏上旅途前，分配好各自在队伍中的职责：" +
+      DE.PARTY_ROLES.map(function (r) { return "<b>" + DE.ui.esc(r) + "</b>"; }).join(" / ") + "。</div>";
+
+    html += "<h3>初始值</h3><div class='hint'>等级 " + DE.START.level + "；经验值 " + DE.START.exp +
+      "；初始金币 <b>" + DE.START.money + " G</b>；擅长武器 " + DE.START.favoredWeaponCount +
+      " 种；随身物品 " + DE.START.personalItems + " 个。</div>";
+
+    html += "<h3>郊游模式（简易模式）</h3><div class='hint'>" + DE.ui.esc(DE.PICNIC_MODE.desc) + "<br>" +
+      DE.PICNIC_MODE.rules.map(function (r) { return "・" + DE.ui.esc(r); }).join("<br>") + "<br><br>" +
+      DE.PICNIC_MODE.sets.map(function (s) {
+        return "<b>" + DE.ui.esc(s.name) + "</b>：" + DE.ui.esc(s.items);
+      }).join("<br>") + "</div>";
+
+    html += "<h3>角色卡字段说明</h3><table class='tbl'><thead><tr><th>字段</th><th>含义</th></tr></thead><tbody>" +
+      DE.SHEET_FIELDS.map(function (f) {
+        return "<tr><td><b>" + DE.ui.esc(f.field) + "</b></td><td style='font-size:12.5px'>" +
+          DE.ui.esc(f.meaning) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+    return html + "</div>";
+  }
+
+
+  /* ---------- 旅行规则 ---------- */
+  function paneTravel() {
+    var html = '<div class="card"><h2>🧭 旅行规则</h2>';
+    html += "<h3>旅行规则流程</h3><div class='hint'>" +
+      ["(1) 状态判定【体力 + 精神】", "(2) 移动判定【体力 + 敏捷】", "(3) 方向判定【智力 + 智力】", "(4) 野营判定【敏捷 + 智力】", "(一天结束时，每人消耗食物和水各 1 天份)"].map(DE.ui.esc).join("<br>") + "</div>";
+
+    html += "<h3>状态值</h3><div class='hint'>" +
+      DE.ui.esc(DE.CONDITION.formula) + "<br>" + DE.ui.esc(DE.CONDITION.perfect) + "</div>";
+
+    html += "<h3>异常状态</h3><div class='hint'>" + DE.ui.esc(DE.CONDITION.note) + "</div>" +
+      "<table class='tbl' style='margin-top:8px'><thead><tr><th>类别</th><th>名称</th><th>效果</th></tr></thead><tbody>" +
+      DE.STATUSES.physical.concat(DE.STATUSES.mental).map(function (s, i) {
+        return "<tr><td>" + (i < 3 ? "身体系" : "精神系") + "</td><td><b>" + DE.ui.esc(s.name) +
+          "</b></td><td>" + DE.ui.esc(s.effect) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+
+    html += "<h3>地貌等级与目标值</h3><table class='tbl'><thead><tr><th>等级</th><th class='num'>目标值</th>" +
+      "<th>地貌</th></tr></thead><tbody>" +
+      DE.TERRAIN_LEVELS.map(function (t) {
+        return "<tr><td>等级 " + t.level + "</td><td class='num'>" + t.target + "</td><td>" +
+          DE.ui.esc(t.names.join("　")) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+
+    html += "<h3>天气修正值</h3><table class='tbl'><thead><tr><th>天气</th><th class='num'>天气修正值</th></tr></thead><tbody>" +
+      DE.WEATHERS.map(function (w) {
+        return "<tr><td>" + DE.ui.esc(w.name) + "</td><td class='num'>+" + w.modifier + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      "<div class='hint' style='margin-top:8px'>【地貌 + 天气】为目标值的判定中，旅途装备带来的修正值用于抵消天气修正值。</div>";
+
+    html += "<h3>携带与尺寸</h3><div class='hint'>" +
+      "可持有道具的尺寸上限 = <b>体力 + 2 + 旅行者等级</b>。例：〖体力：8〗、等级为 1 的角色，可持有道具的尺寸上限为 11。<br>" +
+      "角色表的“装备”栏中填写的武器、防具和旅途装备视为尺寸为 0，不计入持有道具总尺寸，未装备的道具和容器等物品仍算入持有道具总尺寸。<br>" +
+      "当角色持有的道具总尺寸超过可持有道具尺寸上限时，所有判定受到“超过上限值”数额的减值。例：尺寸上限为 9 的角色持有尺寸总共为 12 的道具时，所有判定受到 -3 的减值。</div>";
+
+    html += "<h3>耐久与买卖</h3><div class='hint'>" +
+      "道具没有“耐久”数据，耐久和道具的尺寸同值。使用道具进行判定，且判定结果为大失败时，该道具的耐久度减少 1 点。耐久度降为 0 后，道具视为损坏，无法再使用，这样的道具只有经过修理后才能再次使用。<br>" +
+      "在城市设施中付款进行“道具修理”可以使道具的耐久度恢复到初始值。<br>" +
+      "购买：支付与想要购买道具的价格等额的金币就可以获得道具。<br>" +
+      "贩卖：不需要的道具能够以购买价格的一半转手，但不能贩卖耐久度为 0 的〈损坏的〉道具。</div>";
+
+    html += "<h3>时间与食物</h3><div class='hint'>" +
+      "药草：采集或购买 24 小时后腐坏；装入〈药草瓶〉最多保存 7 天。<br>" +
+      "食材：大约 24 小时后就会变得无法食用。<br>" +
+      "干粮：旅行中不可或缺的可携带食物。好吃的干粮食用后第二天的【状态判定】获得 +1 加值。<br>" +
+      "水袋可装 1 天份的水；水桶可装 15 天份的水。</div>";
+    return html + "</div>";
+  }
+
+  function render() {
+    renderTabs();
+    var html = "";
+    if (tab === "items") html = paneItems();
+    else if (tab === "herbs") html = paneHerbs();
+    else if (tab === "magic") html = paneMagic();
+    else if (tab === "season") html = paneSeason();
+    else if (tab === "prof") html = paneProf();
+    else if (tab === "talent") html = paneTalent();
+    else if (tab === "chagen") html = paneChagen();
+    else if (tab === "travel") html = paneTravel();
+    $("#pane").innerHTML = html;
+  }
+  render();
+}});
+</script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

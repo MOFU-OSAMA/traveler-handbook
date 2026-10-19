@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>首页 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>🥚</span>旅行者手册</div>
+  <div class="page-sub">车卡 · 背包 · 咒语书 · 商店 · 地图 · 手账 · 图鉴 —— 依据《龙蛋物语 全规则优化带书签 v2.4》制作</div>
+
+  <div id="expiryBanner"></div>
+
+  <!-- 生命值：血条 / 蓝条 + 战斗记账按钮（放在最上面，战斗中一眼能看到） -->
+  <div class="card" id="vitalsCard">
+    <h2>❤️ 生命值<span class="hint" style="font-weight:400;margin-left:8px">战斗记录用 · 与咒语书的蓝条是同一份数据</span></h2>
+    <div id="vitalsBox"></div>
+  </div>
+
+  <!-- 存档与迁移（放在靠上的位置，方便找） -->
+  <!-- 存档与迁移 -->
+  <div class="card" id="backupCard" style="margin-top:16px">
+    <h2>💾 存档与迁移<span class="hint" style="font-weight:400;margin-left:8px">换设备 / 网站版本更迭时用</span></h2>
+    <div class="grid c2">
+      <div>
+        <h3>📦 全量备份（网站升级、换电脑用）</h3>
+        <div class="hint" style="margin-bottom:9px">
+          打包<b>所有旅行者 + 游戏时间 + 手账地图</b>，是一个自包含的 JSON 文件。
+          以后换新版本网站，用「导入全量备份」一键恢复。
+        </div>
+        <div class="btnrow">
+          <button class="primary sm" id="btnBackupAll">📦 一键导出全部数据</button>
+          <button class="ghost sm" id="btnRestoreAll">📥 导入全量备份</button>
+          <input type="file" id="fileBackupAll" accept=".json,application/json" style="display:none">
+        </div>
+      </div>
+      <div>
+        <h3>🐲 旅行者状态（给龙人端 / 主持人用）</h3>
+        <div class="hint" style="margin-bottom:9px">
+          精简的状态快照：能力值、HP/MP、状态值、异常状态、物资、判定减值。
+          <b>不含手账和私人物品明细</b>，只有带团时该看的信息。
+        </div>
+        <div class="btnrow">
+          <button class="ghost sm" id="btnExportTraveler">🧑 导出当前旅行者</button>
+          <button class="ghost sm" id="btnExportParty">👥 导出全队（所有人）</button>
+        </div>
+      </div>
+    </div>
+    <div id="backupInfo" class="hint" style="margin-top:11px"></div>
+  </div>
+
+
+  <!-- 角色存档箱：切换 / 新建 / 改名 / 复制 / 删除 -->
+  <div class="card" id="savesCard" style="margin-top:16px">
+    <h2>🗃️ 角色存档<span class="hint" style="font-weight:400;margin-left:8px">每个旅行者一份独立存档 · 背包金币账本都跟着走</span></h2>
+    <div id="savesBox"></div>
+  </div>
+
+  <!-- 异常状态单独一张卡，放在最显眼的位置（规则书 p74-p75，只有旅行者用） -->
+  <div class="card" id="statusCard">
+    <h2>🩹 异常状态<span class="hint" style="font-weight:400;margin-left:8px">会压制能力值 · 影响 HP/MP/行动值</span></h2>
+    <div id="statusEditor"></div>
+  </div>
+
+
+  <div class="grid c2">
+    <div class="card">
+      <h2>🧾 角色概览<span id="clockChip" style="margin-left:auto"></span></h2>
+      <div id="charSummary"></div>
+    </div>
+
+    <div class="card">
+      <h2>⚡ 快捷操作</h2>
+      <div class="btnrow" style="margin-top:0">
+        <a class="btn primary" href="create.html">开始车卡</a>
+        <a class="btn" href="bag.html">查看背包</a>
+        <a class="btn" href="spellbook.html">翻开咒语书</a>
+        <a class="btn gold" href="shop.html">去商店</a>
+        <a class="btn ghost" href="map.html">冒险地图</a>
+        <a class="btn ghost" href="journal.html">手账本</a>
+        <a class="btn ghost" href="codex.html">查阅图鉴</a>
+      </div>
+      <div class="hint" style="margin-top:14px">
+        <b>时间与保质期</b><br>
+        药草在采集或购买 <b>24 小时</b> 后就会腐坏，不能再使用；<br>
+        若装入〈<b>药草瓶</b>〉，最多可以保存 <b>7 天</b>（从瓶子开始使用算起）。<br>
+        <b>游戏时间完全手动</b>：关掉网页放多久，游戏里都停在那一刻 —— 去 <a href="bag.html">背包</a> 用时钟按钮推进。
+      </div>
+      <div class="btnrow">
+        <button class="ghost sm" id="btnExport">导出角色存档</button>
+        <button class="ghost sm" id="btnImport">导入存档</button>
+        <button class="danger sm" id="btnReset">清空全部数据</button>
+      </div>
+      <input type="file" id="fileImport" accept=".json,application/json" style="display:none">
+    </div>
+  </div>
+
+<div class="grid c2" style="margin-top:16px">
+  <div class="card">
+    <h2>💰 金币<span class="hint" style="font-weight:400;margin-left:8px">可修改 / 发奖励</span></h2>
+    <div id="moneyHero"></div>
+  </div>
+  <div class="card">
+    <h2>💗 状态值<span class="hint" style="font-weight:400;margin-left:8px">★10 = 状态绝佳</span></h2>
+    <div id="statusPanel"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>🧾 交易记录<span class="hint" style="font-weight:400;margin-left:8px">金币账本</span></h2>
+  <div id="ledgerPanel"></div>
+</div>
+
+
+  <div class="grid c2" style="margin-top:16px">
+    <div class="card">
+      <h2>🎒 携带状态</h2>
+      <div id="bagSummary"></div>
+    </div>
+
+    <div class="card">
+      <h2>🌿 保质期提醒</h2>
+      <div id="expiryMini"></div>
+    </div>
+
+    <!-- 判定（规则书 p70 / p77） -->
+    <div class="card" style="grid-column:1/-1">
+      <h2>🎲 判定<span class="hint" style="font-weight:400;margin-left:8px">2 个骰子 + 修正值 ≥ 目标值</span></h2>
+      <div id="judgeBox"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>📖 这个工具能做什么</h2>
+    <div class="grid c3">
+      <div><h3>🧾 车卡</h3><div class="holder hint">
+        旅行者按规则书 8 个步骤制作，支持上传头像 / 立绘，
+        页面顶部还有<b>规则自检</b>，会逐条比对你的卡和规则书。
+      </div></div>
+      <div><h3>🎒 背包与商店</h3><div class="holder hint">
+        游戏式格子背包，94 种道具都带图标与词条配色。药草有<b>保质期</b>与<b>过期提醒</b>：
+        未装瓶 24 小时，装进药草瓶 7 天。
+      </div></div>
+      <div><h3>📖 咒语书</h3><div class="holder hint">
+        记录已学会的咒语与季节魔法，按等级解锁档位，带 MP 记录与筛选。
+      </div></div>
+      <div><h3>🗺️ 世界地图</h3><div class="holder hint">
+        一整张网格大地图，24 种地形随你画，格子可写地名与便签，还能铺你自己画的地图块。
+      </div></div>
+      <div><h3>📔 手账本</h3><div class="holder hint">
+        每段冒险是一本笔记本：左页写记录、右页贴徽章与奖励贴纸，可以拼贴、加文字、导出图片。
+      </div></div>
+      <div><h3>📚 图鉴</h3><div class="holder hint">
+        道具全表、药草、咒语魔法、季节魔法、职业与技能、特长、旅行规则速查。
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>⚠️ 已知限制</h2>
+    <div class="holder hint">
+      <b>游戏时间与现实时间无关</b>，全部靠手动推进（背包页的时钟按钮）。<br>
+      <b>领航员</b>职业的部分技能数值在 PDF 字体子集里无法辨识，已按「不可读」标注，未做推测。<br>
+      数据保存在本机浏览器里：角色与设置用 localStorage，手账与地图用 IndexedDB（GB 级）。换浏览器或清理浏览器数据会丢失，建议定期「导出角色存档」。
+    </div>
+  </div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/core/backup.js?v=beda2c2c"></script>
+<script>
+DE.ui.bootPage({ after: function () {
+  var c = DE.store.character;
+
+
+  /* ---------- 游戏时间小条 ---------- */
+  function renderClockChip() {
+    var el = DE.ui.$("#clockChip");
+    if (!el) return;
+    el.innerHTML = '<span class="badge teal" title="游戏时间完全手动推进，与现实无关">⏱ ' +
+      DE.clock.label() + "</span>";
+  }
+
+  /* 异常状态编辑器（规则书 p74-p75）。异常状态会压制能力值，规则书 p74-p75。 */
+  function renderStatusEditor() {
+    /* 显隐 + 渲染都在 DE.ui.statusCard 里（可单测）；这里只把当前状态传进去。 */
+    DE.ui.statusCard({
+      box: "#statusEditor", card: "statusCard",
+      character: c,
+      onChange: function () { renderChar(); }
+    });
+  }
+
+  /* ---------- 生命值：血条 / 蓝条（战斗记账用） ----------
+     HP / MP 都存在 c.hpCurrent / c.mpCurrent 上，
+     咒语书的蓝条读写的也是同一个字段 —— 所以两边天然是同一份数据，
+     这里再补一个 storage 监听，两个标签页同时开着也能互相同步。 */
+  function barClass(kind, now, max) {
+    if (!max) return "vbar " + kind + " empty";
+    if (now <= 0) return "vbar " + kind + " empty";
+    return "vbar " + kind + (now / max <= 0.25 ? " low" : "");
+  }
+  function pctOf(now, max) { return max ? Math.max(0, Math.min(100, Math.round(now / max * 100))) : 0; }
+
+  function vitalBlock(kind, label, now, max, icon) {
+    /* 战斗常用步长：小伤害 1~3，中伤害 5，大伤害 10 */
+    var STEPS = [1, 2, 3, 5, 10];
+    var minus = STEPS.map(function (n) {
+      return '<button class="sm" data-vit="' + kind + '" data-delta="-' + n + '">−' + n + "</button>";
+    }).join("");
+    var plus = STEPS.map(function (n) {
+      return '<button class="sm ghost" data-vit="' + kind + '" data-delta="+' + n + '">+' + n + "</button>";
+    }).join("");
+    return '<div>' +
+      '<div class="vtext"><span>' + icon + " <b>" + label + "</b></span>" +
+        "<span><b>" + now + " / " + max + "</b></span></div>" +
+      '<div class="' + barClass(kind, now, max) + '"><i style="width:' + pctOf(now, max) + '%"></i></div>' +
+      '<div class="vbtns"><span class="lbl">扣' + (kind === "hp" ? "血" : "蓝") + "</span>" + minus + "</div>" +
+      '<div class="vbtns"><span class="lbl">加' + (kind === "hp" ? "血" : "蓝") + "</span>" + plus +
+        '<button class="sm primary" data-vit="' + kind + '" data-delta="full" style="margin-left:6px">回满</button>' +
+        '<button class="sm ghost" data-vit="' + kind + '" data-delta="set">直接设定…</button>' +
+      "</div>" +
+    "</div>";
+  }
+  function renderVitals() {
+    var box = DE.ui.$("#vitalsBox");
+    if (!box) return;
+    var hp = DE.hpNow(c), hpMx = DE.hpMaxOf(c);
+    var mp = DE.mpNow(c), mpMx = DE.mpMaxOf(c);
+    box.innerHTML =
+      '<div class="vitals">' +
+        vitalBlock("hp", "HP", hp, hpMx, "❤️") +
+        vitalBlock("mp", "MP", mp, mpMx, "💙") +
+      "</div>" +
+      '<div class="hint" style="margin-top:10px">' +
+        "「扣 N / 加 N」是直接增减；「快记 −N」也是直接增减，只是步长更适合战斗。" +
+        "HP / MP 满时会存成「满」状态，升级后自动跟上新上限。" +
+        "蓝条和<b>咒语书</b>的蓝条读写同一份数据。</div>";
+    bindVitals(box);
+  }
+
+  function setVital(kind, next) {
+    if (kind === "hp") return DE.setHP(c, next);
+    return DE.setMP(c, next);
+  }
+  function vitNow(kind) { return kind === "hp" ? DE.hpNow(c) : DE.mpNow(c); }
+  function vitMax(kind) { return kind === "hp" ? DE.hpMaxOf(c) : DE.mpMaxOf(c); }
+
+  function bindVitals(root) {
+    DE.ui.$$("[data-vit]", root).forEach(function (b) {
+      b.onclick = function () {
+        var kind = b.getAttribute("data-vit");
+        var d = b.getAttribute("data-delta");
+        var mx = vitMax(kind), now = vitNow(kind);
+        var label = kind === "hp" ? "HP" : "MP";
+        if (d === "full") {
+          setVital(kind, mx);
+          DE.save(c); DE.ui.toast(label + " 已回满（" + mx + "）。", "ok");
+          renderAll(); return;
+        }
+        if (d === "set") {
+          var v = prompt("设定当前 " + label + "（0 ~ " + mx + "）", String(now));
+          if (v === null) return;
+          var n = parseInt(v, 10);
+          if (isNaN(n)) { DE.ui.toast("请输入数字。", "err"); return; }
+          setVital(kind, n);
+          DE.save(c); DE.ui.toast(label + " 设为 " + vitNow(kind) + " / " + mx + "。", "ok");
+          renderAll(); return;
+        }
+        /* ⚠️ delta 一定是带符号的字符串（"-4" / "+2"）。
+           以前这里用 replace("-hit:","") 再 parseInt，会把 −3 解析成 +3 —— 扣血变成加血。 */
+        var delta = parseInt(d, 10);
+        if (isNaN(delta) || delta === 0) { DE.ui.toast("按钮参数不对：" + d, "err"); return; }
+        var target = now + delta;
+        if (target < 0) target = 0;
+        if (target > mx) target = mx;
+        var real = target - now;
+        setVital(kind, target);
+        DE.save(c);
+        DE.ui.toast(label + " " + (real >= 0 ? "+" : "") + real +
+          " → " + vitNow(kind) + " / " + mx, real === 0 ? "" : "ok");
+        renderAll();
+      };
+    });
+  }
+
+  function renderChar() {
+    var s = DE.char.summary(c);
+    var d = DE.derive(c);
+    var prof = DE.PROFESSIONS.filter(function (p) { return p.id === c.profession; })[0];
+    var typ = DE.TYPES.filter(function (t) { return t.id === c.talent; })[0];
+    var dlink = d.abilityDown || {};
+    var ab = DE.ABILITY_KEYS.map(function (k) {
+      var dv = dlink[k.key];
+      return '<div class="stat' + (dv ? " statdown" : "") + '"><div class="k">' + k.name +
+        '</div><div class="v">' + (dv
+          ? '<s>d' + (d.abilitiesBase || c.abilities)[k.key] + "</s> d" + d.abilities[k.key]
+          : "d" + c.abilities[k.key]) + "</div></div>";
+    }).join("")
+    var por = c.portrait
+      ? '<img src="' + c.portrait + '" alt="头像" style="width:88px;height:110px;object-fit:cover;' +
+        'border-radius:9px;border:1px solid var(--line);box-shadow:0 2px 8px rgba(90,72,45,.18);flex:0 0 auto">'
+      : '<div style="width:88px;height:110px;border-radius:9px;border:2px dashed var(--line);' +
+        'display:flex;align-items:center;justify-content:center;font-size:26px;opacity:.55;' +
+        'background:var(--parch-2);flex:0 0 auto">🖼️</div>';
+    var head = '<div style="display:flex;gap:13px;align-items:flex-start;margin-bottom:11px">' + por +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:17px;font-weight:700;color:var(--teal-dk);margin-bottom:2px">' +
+          DE.ui.esc(c.name || "（未命名旅行者）") + '</div>' +
+        '<div class="hint" style="margin-bottom:6px">' +
+        '等级 ' + c.level + ' · 经验 ' + c.exp + ' · ' +
+        (prof ? DE.ui.esc(prof.name) : "<span style='color:#b0473c'>未选择职业</span>") + ' · ' +
+        (typ ? DE.ui.esc(typ.name) + '型' : "<span style='color:#b0473c'>未选择特长</span>") +
+        '</div>' +
+      '</div>' +
+      "</div>" +
+      '<div class="statgrid">' + ab + '</div>' +
+      '<div class="statgrid" style="margin-top:9px">' +
+        '<div class="stat"><div class="k">HP</div><div class="v">' + DE.hpNow(c) + "/" + s.hpMax + '</div></div>' +
+        '<div class="stat"><div class="k">MP</div><div class="v">' + DE.mpNow(c) + "/" + s.mpMax + '</div></div>' +
+        '<div class="stat"><div class="k">状态值</div><div class="v">' + s.condition + '</div></div>' +
+        '<div class="stat"><div class="k">行动值</div><div class="v">' + s.action + '</div></div>' +
+        '<div class="stat"><div class="k">金币</div><div class="v" style="font-size:16px">' + c.money + '</div></div>' +
+      '</div>';
+    /* ⚠️ 以前这里拼完 head 就结束了，从没赋给 #charSummary ——
+       于是首页「角色概览」永远是空白。 */
+    var box = DE.ui.$("#charSummary");
+    if (box) box.innerHTML = head;
+  }
+
+  function renderBag() {
+    var s = DE.char.summary(c);
+    var st = DE.inventoryStats(c);
+    var over = s.sizeOver;
+    DE.ui.$("#bagSummary").innerHTML =
+      '<div class="statgrid">' +
+        '<div class="stat"><div class="k">道具总数</div><div class="v">' + st.count + '</div></div>' +
+        '<div class="stat"><div class="k">药草</div><div class="v">' + st.herbs + '</div></div>' +
+        '<div class="stat' + (st.damaged ? ' warn' : '') + '"><div class="k">已损坏</div><div class="v">' + st.damaged + '</div></div>' +
+        '<div class="stat' + (over ? ' warn' : '') + '"><div class="k">持有尺寸</div><div class="v">' + s.sizeUsed + '/' + s.sizeLimit + '</div></div>' +
+      '</div>' +
+      '<div style="margin-top:11px"><div class="bar' + (over ? ' warn' : '') + '"><i style="width:' +
+        Math.min(100, Math.round(s.sizeUsed / Math.max(1, s.sizeLimit) * 100)) + '%"></i></div></div>' +
+      '<div class="hint" style="margin-top:7px">' +
+        (over ? '<span style="color:#b0473c">⚠ 已超出尺寸上限 ' + over + ' 点，所有判定受到 -' + over + ' 减值。</span>'
+              : '尺寸上限 = 体力 ' + c.abilities.str + ' + 2 + 等级 ' + c.level +
+                (c.bonus.sizeLimit ? ' + 特长 ' + c.bonus.sizeLimit : '') +
+                (s.carryLimit ? ' + 驮货动物 ' + s.carryLimit : '') + ' = ' + s.sizeLimit) +
+      '</div>' +
+      /* 容器规则摘要（规则书 p51） */
+      (function () {
+        var g = DE.containerGroups(c);
+        var lim = DE.largeContainerLimit(c);
+        var water = DE.waterDaysOf(c);
+        var mp = DE.movePenalty(c);
+        var parts = [];
+        parts.push('大型容器 ' + g.large.length + ' / ' + (lim === Infinity ? '∞' : lim));
+        if (DE.carryCapacityOf(c)) parts.push('可驮 ' + DE.carryCapacityOf(c));
+        if (water) parts.push('水量 ' + water + ' 天份');
+        if (mp.value) parts.push('移动判定 ' + mp.value);
+        var sup = DE.supplyState(c);
+        parts.push('口粮 ' + sup.foodDays + ' 天');
+        parts.push('水 ' + sup.waterDays + ' / ' + sup.waterCapacity + ' 天');
+        if (sup.penalty) parts.push('补给减值 -' + sup.penalty);
+        return '<div class="hint" style="margin-top:5px">' + parts.join('　·　') +
+          (mp.value ? '<br><span style="color:#a06a00">' + DE.ui.esc(mp.reasons.join('；')) + '</span>' : '') +
+          (sup.penalty
+            ? '<br><span style="color:#b0473c">⚠ ' + DE.ui.esc(DE.supplyWarning(c)) + '</span>'
+            : (sup.foodShort || sup.waterShort
+                ? '<br><span style="color:#a06a00">⚠' + (sup.foodShort ? ' 口粮不足' : '') +
+                  (sup.waterShort ? ' 水不足' : '') + '，再走一天就开始累计减值。</span>'
+                : '')) +
+          '</div>';
+      })();
+  }
+
+  function renderExpiry() {
+    var list = DE.expiryList(c);
+    if (!list.length) {
+      DE.ui.$("#expiryMini").innerHTML = '<div class="empty"><span class="big">🌿</span>目前没有会腐坏的物品。<br><span class="hint">去商店买些药草，或用药师技能采集吧。</span></div>';
+      return;
+    }
+    var rows = list.slice(0, 8).map(function (x) {
+      var p = Math.max(0, Math.min(1, x.life.remainMs / x.life.totalMs));
+      var cls = x.life.expired ? "dead" : (p < .15 ? "crit" : (p < .4 ? "soon" : "ok"));
+      return '<div style="margin-bottom:9px">' +
+        '<div class="shelf"><span class="nm" style="font-weight:600">' + DE.ui.esc(x.inst.name) + '</span>' +
+        '<span class="badge ' + (x.inst.kind === "herb" ? "green" : "gold") + '">' + DE.ui.esc(x.life.label) + '</span>' +
+        '<span style="margin-left:auto;color:' + (x.life.expired ? "#b0473c" : "#6b5f50") + '">' +
+          (x.life.expired ? "已过期" : "剩 " + DE.fmtRemain(x.life.remainMs)) + '</span></div>' +
+        '<div class="shelfbar ' + cls + '" style="margin-top:4px"><i style="width:' + Math.round(p * 100) + '%"></i></div>' +
+        '</div>';
+    }).join("");
+    DE.ui.$("#expiryMini").innerHTML = rows +
+      '<div class="btnrow"><a class="btn sm" href="bag.html">在背包中管理 →</a></div>';
+  }
+
+  /* ---------- 判定（规则书 p70 / p77 / p51 / p78） ---------- */
+  var judgeType = "status", judgeTarget = 7, judgeExtra = 0;
+  var judgeRaw = null;        /* 原始掷骰结果 */
+  var judgeLast = null;       /* 归一化（可能被手动改过）的结果 */
+  var judgeOverride = "auto"; /* auto | success | fail | bigOk | critFail */
+
+  var LABELS = { success: "成功", fail: "失败", bigOk: "大成功", critFail: "大失败" };
+
+  /* 把「手动选的结论」叠到掷骰结果上 */
+  function normalizeJudge(r, ov) {
+    if (!r) return null;
+    var out = {};
+    for (var k in r) out[k] = r[k];
+    /* 先按点数重算 total —— 点数可能被手动改过 */
+    out.sum = (parseInt(out.rolled[0], 10) || 0) + (parseInt(out.rolled[1], 10) || 0);
+    out.mod = (out.penalty || 0) + (parseInt(out.extraMod, 10) || 0);
+    out.total = out.sum + out.mod;
+    out.success = out.total >= out.target;
+    /* 点数两边都 1 / 都最大 → 大失败 / 大成功（除非手动指定） */
+    var cf = (out.rolled[0] === 1 && out.rolled[1] === 1);
+    var bo = (out.rolled[0] === out.dice[0] && out.rolled[1] === out.dice[1]) ||
+             (out.rolled[0] === 6 && out.rolled[1] === 6);
+    out.critFail = cf; out.bigOk = bo;
+    if (ov && ov !== "auto") {
+      out.critFail = (ov === "critFail");
+      out.bigOk    = (ov === "bigOk");
+      out.success  = (ov === "success" || ov === "bigOk");
+      out.overridden = true;
+    } else {
+      out.overridden = false;
+    }
+    out.label = (out.critFail ? LABELS.critFail
+              : out.bigOk ? LABELS.bigOk
+              : out.success ? LABELS.success : LABELS.fail);
+    return out;
+  }
+
+  function renderJudge() {
+    var box = DE.ui.$("#judgeBox");
+    if (!box) return;
+
+    var chips = DE.JUDGE_TYPES.map(function (t) {
+      return '<span class="chip' + (judgeType === t.id ? " active" : "") +
+        '" data-jtype="' + t.id + '">' + t.icon + " " + t.name + "</span>";
+    }).join("");
+    var cur = DE.JUDGE_TYPES.filter(function (t) { return t.id === judgeType; })[0] || DE.JUDGE_TYPES[0];
+
+    var targetOpts = DE.JUDGE_RULE.targetRef.map(function (x) {
+      return '<option value="' + x.target + '"' + (judgeTarget === x.target ? " selected" : "") + ">" +
+        x.target + "　" + x.word + "</option>";
+    }).join("");
+
+    var pen = DE.judgmentPenalty(c, judgeType);
+    var penRows = pen.parts.length
+      ? pen.parts.map(function (p) {
+          return "<li>" + DE.ui.esc(p.src) + " <b>" + (p.v > 0 ? "+" + p.v : p.v) + "</b>" +
+            (p.note ? '　<span class="hint">' + DE.ui.esc(p.note) + "</span>" : "") + "</li>";
+        }).join("")
+      : "<li>无减值</li>";
+
+    var html =
+      '<div class="chips" id="judgeTypes">' + chips + "</div>" +
+      '<div class="hint" style="margin-top:7px">' + DE.ui.esc(cur.desc) + "</div>" +
+      '<div class="inline" style="margin-top:11px;gap:10px;flex-wrap:wrap">' +
+        '<label class="fld" style="margin:0"><span>目标值</span>' +
+          '<select id="judgeTarget">' + targetOpts + "</select></label>" +
+        '<label class="fld" style="margin:0"><span>临时目标值（可选）</span>' +
+          '<input type="number" id="judgeTargetFree" placeholder="地貌+天气" style="width:120px"></label>' +
+        '<label class="fld" style="margin:0"><span>额外修正</span>' +
+          '<input type="number" id="judgeExtra" value="' + judgeExtra + '" style="width:80px" step="1"></label>' +
+        '<button class="btn primary" id="btnJudgeRoll">🎲 掷骰判定</button>' +
+        '<button class="btn ghost" id="btnJudgeManual">✏️ 手动录入结果</button>' +
+      "</div>" +
+      '<div class="hint" style="margin-top:9px">' +
+        "骰面 = 该判定用到的两个能力值（会随异常状态降低）。" +
+        "<b>2 个骰子点数 + 修正值 ≥ 目标值</b> 即成功；两个 1 = 大失败。</div>" +
+      '<div style="margin-top:12px"><b>本次判定的减值</b>　' +
+        (pen.value ? '<span style="color:#b0473c"><b>' + pen.value + "</b></span>" : "<b>±0</b>") +
+        "</div>" +
+      '<ul class="hint" style="margin:6px 0 0 18px">' + penRows + "</ul>";
+
+    /* ===== 判定结果（可编辑） ===== */
+    if (judgeLast) {
+      var r = judgeLast;
+      var okCls = r.critFail ? "red" : (r.success ? "green" : "gold");
+      var pv = DE.previewJudgeEffect(c, r);
+      var pvRows = (pv.changes || []).map(function (ch) {
+        return "<li>" + DE.ui.esc(ch.what) + "　<b>" + DE.ui.esc(String(ch.from)) +
+          "</b> → <b>" + DE.ui.esc(String(ch.to)) + "</b></li>";
+      }).join("");
+
+      html +=
+        '<div class="alert ' + okCls + '" style="margin-top:14px"><span class="ico">' +
+          (r.critFail ? "💀" : (r.bigOk ? "✨" : (r.success ? "✅" : "❌"))) + "</span><div>" +
+          "<b>" + DE.ui.esc(r.typeName) + "：" + r.label + "</b>" +
+          (r.overridden ? '　<span class="badge">已手动指定结论</span>' : "") +
+          '<div style="margin-top:8px;font-size:15px">' +
+            "d" + r.dice[0] + "(" + r.rolled[0] + ") + d" + r.dice[1] + "(" + r.rolled[1] +
+            ") = <b>" + r.sum + "</b>　修正 <b>" +
+            (r.mod > 0 ? "+" + r.mod : (r.mod === 0 ? "±0" : r.mod)) +
+            "</b>　合计 <b>" + r.total + "</b>　vs 目标 <b>" + r.target + "</b>" +
+          "</div>" +
+          (r.parts.length
+            ? '<div class="hint" style="margin-top:5px">减值来自：' +
+              r.parts.map(function (p) { return DE.ui.esc(p.src) + " " + p.v; }).join("；") + "</div>"
+            : "") +
+          "</div></div>" +
+
+        /* —— 自定义更改区 —— */
+        '<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">' +
+          '<b>✏️ 修改判定结果（想手动指定就改这里）</b>' +
+          '<div class="inline" style="margin-top:9px;gap:10px;flex-wrap:wrap">' +
+            '<label class="fld" style="margin:0"><span>骰子 1 点数</span>' +
+              '<input type="number" id="judgeD1" min="1" max="' + r.dice[0] + '" value="' + r.rolled[0] + '" style="width:74px"></label>' +
+            '<label class="fld" style="margin:0"><span>骰子 2 点数</span>' +
+              '<input type="number" id="judgeD2" min="1" max="' + r.dice[1] + '" value="' + r.rolled[1] + '" style="width:74px"></label>' +
+            '<label class="fld" style="margin:0"><span>额外修正</span>' +
+              '<input type="number" id="judgeExtra2" value="' + r.extraMod + '" style="width:80px"></label>' +
+            '<label class="fld" style="margin:0"><span>目标值</span>' +
+              '<input type="number" id="judgeTarget2" value="' + r.target + '" style="width:80px"></label>' +
+            '<label class="fld" style="margin:0"><span>结论</span>' +
+              '<select id="judgeOutcome">' +
+                ["auto", "success", "fail", "bigOk", "critFail"].map(function (k) {
+                  var nm = k === "auto" ? "自动（按合计 vs 目标）" : LABELS[k];
+                  return '<option value="' + k + '"' + (judgeOverride === k ? " selected" : "") + ">" + nm + "</option>";
+                }).join("") +
+              "</select></label>" +
+          "</div>" +
+          '<div style="margin-top:11px"><b>应用后效果</b>' +
+            (pv.note ? '<div class="hint">' + DE.ui.esc(pv.note) + "</div>" : "") +
+            (pvRows ? '<ul class="hint" style="margin:6px 0 0 18px">' + pvRows + "</ul>"
+                    : '<div class="hint">不会改动任何数值。</div>') +
+          "</div>" +
+          '<div class="btnrow" style="margin-top:11px">' +
+            '<button class="btn primary" id="btnJudgeApply">✓ 应用判定结果</button>' +
+            '<button class="btn ghost" id="btnJudgeClear">清空结果</button>' +
+          "</div>" +
+        "</div>";
+    }
+
+    box.innerHTML = html;
+    bindJudge(box);
+  }
+
+  function bindJudge(root) {
+    DE.ui.$$("[data-jtype]", root).forEach(function (ch) {
+      ch.onclick = function () { judgeType = ch.getAttribute("data-jtype"); renderJudge(); };
+    });
+    var sel = DE.ui.$("#judgeTarget", root);
+    if (sel) sel.onchange = function () { judgeTarget = parseInt(sel.value, 10) || 7; };
+    var ex = DE.ui.$("#judgeExtra", root);
+    if (ex) { ex.oninput = ex.onchange = function () { judgeExtra = parseInt(ex.value, 10) || 0; }; }
+
+    /* 掷骰 */
+    var btn = DE.ui.$("#btnJudgeRoll", root);
+    if (btn) btn.onclick = function () {
+      var free = DE.ui.$("#judgeTargetFree", root);
+      var freeV = free ? parseInt(free.value, 10) : NaN;
+      var target = isNaN(freeV) ? judgeTarget : freeV;
+      judgeRaw = DE.rollJudge(c, { type: judgeType, target: target, mod: judgeExtra });
+      judgeOverride = "auto";
+      judgeLast = normalizeJudge(judgeRaw, judgeOverride);
+      renderJudge();
+      DE.ui.toast(judgeLast.typeName + "：" + judgeLast.label +
+        "（" + judgeLast.total + " vs " + judgeLast.target + "）",
+        judgeLast.critFail ? "err" : (judgeLast.success ? "ok" : "err"));
+    };
+
+    /* 手动录入：直接给一个空结果，让用户填点数 */
+    var man = DE.ui.$("#btnJudgeManual", root);
+    if (man) man.onclick = function () {
+      var cur = DE.JUDGE_TYPES.filter(function (t) { return t.id === judgeType; })[0] || DE.JUDGE_TYPES[0];
+      var eff = (DE.effAbilities ? DE.effAbilities(c).abilities : c.abilities) || {};
+      var dice = cur.ab.map(function (k) { return Math.max(4, eff[k] || 4); });
+      judgeRaw = {
+        type: cur, typeId: cur.id, typeName: cur.name, ab: cur.ab,
+        dice: dice, rolled: [Math.ceil(dice[0] / 2), Math.ceil(dice[1] / 2)],
+        sum: 0, penalty: DE.judgmentPenalty(c, cur.id).value,
+        parts: DE.judgmentPenalty(c, cur.id).parts,
+        extraMod: judgeExtra, mod: 0, total: 0,
+        target: judgeTarget, success: false, critFail: false, bigOk: false, label: "失败"
+      };
+      judgeOverride = "auto";
+      judgeLast = normalizeJudge(judgeRaw, judgeOverride);
+      renderJudge();
+      DE.ui.toast("已切到手动录入：改点数 / 修正 / 目标 / 结论，再点「应用判定结果」。", "ok");
+    };
+
+    /* —— 自定义区的输入 —— */
+    function refreshFromInputs() {
+      if (!judgeLast) return;
+      var d1 = DE.ui.$("#judgeD1", root), d2 = DE.ui.$("#judgeD2", root);
+      var xm = DE.ui.$("#judgeExtra2", root), tg = DE.ui.$("#judgeTarget2", root);
+      var ov = DE.ui.$("#judgeOutcome", root);
+      if (judgeRaw) {
+        judgeRaw.rolled = [
+          d1 ? (parseInt(d1.value, 10) || 1) : judgeRaw.rolled[0],
+          d2 ? (parseInt(d2.value, 10) || 1) : judgeRaw.rolled[1]
+        ];
+        judgeRaw.extraMod = xm ? (parseInt(xm.value, 10) || 0) : judgeRaw.extraMod;
+        judgeRaw.target = tg ? (parseInt(tg.value, 10) || 1) : judgeRaw.target;
+      }
+      judgeOverride = ov ? ov.value : judgeOverride;
+      judgeLast = normalizeJudge(judgeRaw, judgeOverride);
+    }
+    [["#judgeD1"], ["#judgeD2"], ["#judgeExtra2"], ["#judgeTarget2"]].forEach(function (spec) {
+      var el = DE.ui.$(spec[0], root);
+      if (!el) return;
+      var h = function () { refreshFromInputs(); renderJudge(); };
+      el.oninput = el.onchange = h;
+    });
+    var ovEl = DE.ui.$("#judgeOutcome", root);
+    if (ovEl) ovEl.onchange = function () { refreshFromInputs(); renderJudge(); };
+
+    /* 应用 */
+    var ap = DE.ui.$("#btnJudgeApply", root);
+    if (ap) ap.onclick = function () {
+      var r = DE.applyJudgeEffect(c, judgeLast);
+      if (!r.ok) { DE.ui.toast(r.msgs[0] || "应用失败。", "err"); return; }
+      DE.save(c);
+      if (DE.archive) DE.archive.stashActive();
+      DE.ui.toast(r.msgs.join("　"), "ok");
+      renderAll();
+    };
+    var cl = DE.ui.$("#btnJudgeClear", root);
+    if (cl) cl.onclick = function () {
+      judgeRaw = null; judgeLast = null; judgeOverride = "auto"; renderJudge();
+    };
+  }
+
+  /* 统一重绘 */
+  /* 存档箱（切换角色）。DE.saves.panel 内部会自己重绑按钮。 */
+  function renderSaves() {
+    var box = DE.ui.$("#savesBox");
+    if (!box || !DE.saves || !DE.saves.panel) return;
+    DE.saves.panel(box, {
+      onSwitch: function () { location.reload(); }
+    });
+  }
+
+  function renderAll() {
+    renderSaves();
+    renderVitals();
+    renderChar(); renderStatusEditor(); renderBag(); renderExpiry(); renderClockChip();
+    renderJudge();
+    DE.ui.expiryBanner(DE.ui.$("#expiryBanner"));
+  }
+
+
+  DE.onTick = renderAll;
+  DE.onTick();
+
+  /* 别的标签页改了存档（比如咒语书里消耗了 MP）→ 这里重新读档并重绘 */
+  DE.ui.onCharacterChanged(function (fresh) { c = fresh; renderAll(); });
+
+  /* ---------- 存档与迁移（全量备份 / 龙人端状态） ---------- */
+  function backupInfo(msg, cls) {
+    var el = DE.ui.$("#backupInfo");
+    if (!el) return;
+    el.innerHTML = msg ? '<span style="color:' +
+      (cls === "err" ? "#b0473c" : "#4a7c3f") + '">' + DE.ui.esc(msg) + "</span>" : "";
+  }
+
+  /* 一键导出全部：旅行者 + 游戏时间 + 手账地图 */
+  var btnBackup = DE.ui.$("#btnBackupAll");
+  if (btnBackup) btnBackup.onclick = function () {
+    if (!DE.backup) { DE.ui.toast("备份模块没加载。", "err"); return; }
+    backupInfo("正在打包…");
+    DE.backup.exportAll().then(function (txt) {
+      DE.backup.download("龙蛋物语-全量备份-" + DE.backup.stamp() + ".json", txt);
+      var kb = Math.round(txt.length / 1024);
+      backupInfo("已导出全量备份（约 " + kb + " KB）。换版本后用「导入全量备份」恢复。");
+      DE.ui.toast("已导出全量备份（" + kb + " KB）。", "ok");
+    }).catch(function (e) {
+      backupInfo("导出失败：" + (e && e.message ? e.message : e), "err");
+      DE.ui.toast("导出失败。", "err");
+    });
+  };
+
+  /* 导入全量备份：覆盖式恢复，然后刷新 */
+  var btnRestore = DE.ui.$("#btnRestoreAll");
+  var fileRestore = DE.ui.$("#fileBackupAll");
+  if (btnRestore) btnRestore.onclick = function () {
+    if (!DE.backup) { DE.ui.toast("备份模块没加载。", "err"); return; }
+    DE.ui.confirm({
+      title: "导入全量备份",
+      okText: "覆盖并恢复",
+      body: "这份备份会**覆盖本机现有的全部数据**（所有旅行者、游戏时间、手账）。" +
+            "确定要继续吗？建议先把当前数据导出一份。"
+    }).then(function (ok) {
+      if (!ok) return;
+      if (fileRestore) fileRestore.click();
+    });
+  };
+  if (fileRestore) fileRestore.onchange = function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      backupInfo("正在恢复…");
+      DE.backup.importAll(String(fr.result || "")).then(function (r) {
+        if (!r.ok) {
+          backupInfo("恢复失败：" + r.msg, "err");
+          DE.ui.toast("恢复失败：" + r.msg, "err");
+          return;
+        }
+        backupInfo(r.msg);
+        DE.ui.toast(r.msg, "ok");
+        if (r.reload) setTimeout(function () { location.reload(); }, 700);
+      }).catch(function (err) {
+        backupInfo("恢复失败：" + (err && err.message ? err.message : err), "err");
+      });
+    };
+    fr.readAsText(f);
+    e.target.value = "";
+  };
+
+  /* 龙人端：当前旅行者状态 */
+  var btnTv = DE.ui.$("#btnExportTraveler");
+  if (btnTv) btnTv.onclick = function () {
+    if (!DE.backup) { DE.ui.toast("备份模块没加载。", "err"); return; }
+    var txt = DE.backup.exportTravelerStatus(c);
+    if (!txt) { DE.ui.toast("当前角色数据不完整，导不出来。", "err"); return; }
+    DE.backup.download("旅行者状态-" + DE.ui.esc(c.name || "未命名") + "-" +
+      DE.backup.stamp() + ".json", txt);
+    var o = DE.backup.travelerStatus(c).traveler;
+    backupInfo("已导出〈" + o.name + "〉状态：HP " + o.hp.now + "/" + o.hp.max +
+      "　MP " + o.mp.now + "/" + o.mp.max + "　状态值 " + o.status.value +
+      (o.statuses.length ? "　异常 " + o.statuses.length + " 项" : ""));
+    DE.ui.toast("已导出旅行者状态。", "ok");
+  };
+
+  /* 龙人端：全队状态 */
+  var btnParty = DE.ui.$("#btnExportParty");
+  if (btnParty) btnParty.onclick = function () {
+    if (!DE.backup) { DE.ui.toast("备份模块没加载。", "err"); return; }
+    var txt = DE.backup.exportPartyStatus();
+    var o = JSON.parse(txt);
+    DE.backup.download("旅行者全队状态-" + DE.backup.stamp() + ".json", txt);
+    backupInfo("已导出 " + o.count + " 位旅行者的状态。");
+    DE.ui.toast("已导出全队状态（" + o.count + " 人）。", "ok");
+  };
+
+  /* 导出 */
+  DE.ui.$("#btnExport").onclick = function () {
+    var blob = new Blob([DE.char.exportJSON(c)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "龙蛋物语角色_" + (c.name || "未命名") + ".json";
+    a.click();
+    DE.ui.toast("已导出角色存档。", "ok");
+  };
+  /* 导入 */
+  DE.ui.$("#btnImport").onclick = function () { DE.ui.$("#fileImport").click(); };
+  DE.ui.$("#fileImport").onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var nc = DE.char.importJSON(fr.result);
+        DE.store.character = nc; DE.save(nc);
+        DE.ui.toast("导入成功，正在刷新…", "ok");
+        setTimeout(function () { location.reload(); }, 700);
+      } catch (err) { DE.ui.toast("导入失败：" + err.message, "err"); }
+    };
+    fr.readAsText(f);
+  };
+  /* 金币账本 + 状态值 */
+  DE.ui.moneyHero(DE.ui.$("#moneyHero"), c, function () {
+    DE.ui.refreshLedgers(); DE.ui.refreshMoneyHeroes();
+  });
+  DE.ui.ledgerPanel(DE.ui.$("#ledgerPanel"), c, function () {
+    DE.ui.refreshMoneyHeroes();
+  });
+  DE.ui.statusPanel(DE.ui.$("#statusPanel"), c, function () { renderChar(); });
+
+
+  /* 清空 */
+  DE.ui.$("#btnReset").onclick = function () {
+    DE.ui.confirm({
+      title: "清空全部数据",
+      body: "这会删除当前角色的所有信息、背包内容与时间记录，且无法撤销。确定要继续吗？",
+      okText: "确定清空"
+    }).then(function (ok) {
+      if (!ok) return;
+      DE.resetAll(); DE.clock.reset();
+      location.reload();
+    });
+  };
+}});
+</script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

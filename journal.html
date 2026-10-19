@@ -1,0 +1,2311 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>手账本 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<style>
+  .jtab{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .dropzone{border:2px dashed var(--line);border-radius:12px;background:#fffdf7;padding:26px 18px;text-align:center;cursor:pointer;transition:.18s}
+  .dropzone:hover{border-color:var(--gold);background:#fffaf0}
+  .dropzone.over{border-color:var(--teal);background:#eef6f4;transform:scale(1.006)}
+  .dropzone .big{font-size:38px;display:block;margin-bottom:8px;opacity:.75}
+  .dropzone .t{font-weight:700;color:var(--teal-dk);font-size:15px;margin-bottom:5px}
+  .dropzone .h{font-size:12.5px;color:var(--ink-soft)}
+  .kindpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;margin:10px 0}
+  .kindpick .k{border:2px solid var(--line);border-radius:9px;padding:10px;text-align:center;cursor:pointer;background:#fffdf7;transition:.15s}
+  .kindpick .k:hover{border-color:var(--gold-lt)}
+  .kindpick .k.on{border-color:var(--teal);background:#eef6f4;box-shadow:var(--shadow)}
+  .kindpick .k .i{font-size:22px}
+  .kindpick .k .n{font-weight:700;font-size:13.5px;margin-top:3px}
+  .kindpick .k .d{font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-top:3px}
+  .queueitem{display:flex;gap:11px;align-items:flex-start;border:1px solid var(--line);border-radius:9px;padding:10px;background:#fffdf7;margin-bottom:9px}
+  .queueitem img{width:84px;height:84px;object-fit:contain;border-radius:7px;border:1px solid var(--line);background:repeating-conic-gradient(#f0ece0 0% 25%, #fff 0% 50%) 50%/14px 14px;flex:0 0 auto}
+  .queueitem .fields{flex:1;min-width:0}
+  .queueitem .fields input,.queueitem .fields select{margin-bottom:5px;font-size:13px;padding:5px 8px}
+  .stickergrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px}
+  .stickercard{border:1px solid var(--line);border-radius:10px;background:#fffdf7;padding:9px;display:flex;flex-direction:column;gap:6px;transition:.15s;position:relative}
+  .stickercard:hover{box-shadow:0 3px 14px rgba(90,72,45,.18);transform:translateY(-1px)}
+  .stickercard .thumb{height:112px;border-radius:7px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:repeating-conic-gradient(#f0ece0 0% 25%, #fff 0% 50%) 50%/16px 16px;border:1px solid var(--line)}
+  .stickercard .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+  .stickercard .nm{font-weight:700;font-size:13.5px;line-height:1.4;word-break:break-all}
+  .stickercard .meta{font-size:11.5px;color:var(--ink-soft)}
+  .stickercard .acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto}
+  .pin{position:absolute;top:7px;right:7px}
+  /* 分组 */
+  .groupbox{border:1px solid var(--line);border-radius:11px;background:#fffdf7;margin-bottom:16px;overflow:hidden}
+  .groupbox>.gh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 14px;background:linear-gradient(180deg,#f4efe0,#efe8d6);border-bottom:1px solid var(--line)}
+  .groupbox>.gh .gt{font-weight:700;color:var(--teal-dk);font-size:14.5px}
+  .groupbox>.gb{padding:13px 14px}
+  /* 拼贴 */
+  .pagebar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
+  .pagebar .pg{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:#fffdf7;font-size:12.5px;cursor:pointer;color:var(--ink-soft)}
+  .pagebar .pg.active{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:700}
+  .pagebar .pg .n{opacity:.75;font-size:11px}
+  .canvaswrap{position:relative;border:2px solid var(--line);border-radius:11px;overflow:hidden;background:#fdfaf2;min-height:480px;touch-action:none}
+  .canvaswrap.gridbg{background-image:linear-gradient(rgba(63,125,116,.13) 1px, transparent 1px),linear-gradient(90deg, rgba(63,125,116,.13) 1px, transparent 1px);background-size:28px 28px}
+  .tile{position:absolute;cursor:grab;user-select:none;transform-origin:center center}
+  .tile img{display:block;width:100%;height:auto;pointer-events:none;filter:drop-shadow(0 2px 5px rgba(90,72,45,.3))}
+  .tile.sel{outline:2px dashed var(--teal);outline-offset:3px}
+  .tile.drag{cursor:grabbing;z-index:999!important;opacity:.92}
+  .tile .tag{position:absolute;left:50%;bottom:-19px;transform:translateX(-50%);font-size:10.5px;white-space:nowrap;background:rgba(58,49,40,.82);color:#fff;padding:1px 7px;border-radius:999px;opacity:0;transition:.15s;pointer-events:none}
+  .tile:hover .tag,.tile.sel .tag{opacity:1}
+  /* 吸附辅助线 */
+  .guide{position:absolute;background:var(--gold);pointer-events:none;z-index:900;opacity:.9}
+  .guide.v{width:1px;top:0;bottom:0}
+  .guide.h{height:1px;left:0;right:0}
+  .palette{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-start}
+  .palette .p{border:1px solid var(--line);border-radius:8px;background:#fffdf7;padding:6px;width:92px;cursor:grab;text-align:center}
+  .palette .p img{max-width:100%;height:56px;object-fit:contain;display:block;margin:0 auto;background:repeating-conic-gradient(#f0ece0 0% 25%, #fff 0% 50%) 50%/12px 12px;border-radius:5px}
+  .palette .p .n{font-size:11px;margin-top:4px;color:var(--ink-soft);line-height:1.35;word-break:break-all}
+  .badgewall{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:14px}
+  .badgewall .b{text-align:center;padding:12px 8px;border:1px solid var(--line);border-radius:11px;background:linear-gradient(180deg,#fffdf7,#faf5e8)}
+  .badgewall .b img{max-width:100%;height:88px;object-fit:contain;display:block;margin:0 auto 7px;filter:drop-shadow(0 2px 4px rgba(90,72,45,.25))}
+  .badgewall .b .n{font-weight:700;font-size:13px}
+  .badgewall .b .s{font-size:11px;color:var(--ink-soft)}
+  .entrycard{border:1px solid var(--line);border-radius:10px;background:#fffdf7;padding:13px 15px;margin-bottom:11px}
+  .entrycard .hd{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+  .entrycard .hd .t{font-weight:700;font-size:15px;color:var(--teal-dk)}
+  .entrycard .kv{font-size:12.5px;color:var(--ink-soft);display:flex;gap:13px;flex-wrap:wrap;margin-bottom:6px}
+  .entrycard .note{font-size:13px;white-space:pre-wrap;line-height:1.7}
+  .entrycard .bs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .entrycard .bs img{height:40px;border-radius:6px;border:1px solid var(--line);background:#fff}
+
+﻿  /* ---------- 笔记本 UI ---------- */
+  /* 书架：一小本一小本。用 auto-fill + 定宽，book 不会被拉宽成大方块。
+     （原来 auto-fill(196px,1fr) 在宽屏上每本都被拉到几百像素，所以显得又宽又丑） */
+  .nb-shelf{
+    display:grid;grid-template-columns:repeat(auto-fill,104px);
+    gap:13px 11px;padding:6px 2px;justify-content:start;
+  }
+  .nb-book{cursor:pointer;transition:.18s;position:relative;width:104px}
+  .nb-book:hover{transform:translateY(-4px)}
+  .nb-book:hover .nb-cover{box-shadow:0 9px 18px rgba(60,45,25,.34)}
+  .nb-cover{
+    position:relative;height:142px;border-radius:3px 8px 8px 3px;
+    box-shadow:0 4px 11px rgba(60,45,25,.26);overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+  .nb-cover::before{        /* 书脊 */
+    content:"";position:absolute;left:0;top:0;bottom:0;width:11px;
+    background:linear-gradient(90deg,rgba(0,0,0,.32),rgba(0,0,0,.06) 62%,rgba(255,255,255,.12));
+  }
+  .nb-cover::after{         /* 纸张侧边 */
+    content:"";position:absolute;right:0;top:5px;bottom:5px;width:4px;
+    background:repeating-linear-gradient(180deg,#fdfaf2 0 2px,#e7dfca 2px 3px);
+    border-radius:0 2px 2px 0;
+  }
+  .nb-label{
+    margin:auto;width:80%;padding:6px 7px;background:rgba(255,253,247,.93);
+    border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.24);text-align:center;
+  }
+  .nb-label .t{font-weight:700;font-size:10.5px;line-height:1.3;color:#3a3128;
+               display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .nb-label .d{font-size:8.5px;color:#6b5f50;margin-top:2px}
+  .nb-thumb{
+    margin:7px auto 0;width:74%;height:44px;border-radius:2px;overflow:hidden;
+    background:#fdfaf2;box-shadow:0 1px 4px rgba(0,0,0,.2);position:relative;
+  }
+  .nb-thumb img{position:absolute;object-fit:contain}
+  .nb-thumb .tx{position:absolute;color:#3a3128;font-weight:700;line-height:1.1}
+  .nb-meta{text-align:center;margin-top:6px;font-size:10px;line-height:1.35;color:var(--ink-soft)}
+  .nb-meta b{color:var(--teal-dk)}
+  .nb-strip{position:absolute;top:0;right:14px;width:9px;height:32px;
+            background:rgba(255,253,247,.88);border-radius:0 0 2px 2px;
+            box-shadow:0 1px 3px rgba(0,0,0,.18)}
+
+  /* 书桌 */
+  .nb-shelf-wrap{
+    background:linear-gradient(180deg,#e9dfc9,#ded2b6);
+    border:1px solid var(--line);border-radius:10px;padding:15px 14px;
+    box-shadow:inset 0 3px 12px rgba(120,100,65,.18);
+  }
+
+  /* ---------- 摊开的笔记本 ---------- */
+  .spread{
+    position:relative;display:grid;grid-template-columns:1fr 1fr;gap:0;
+    background:#c9b690;border-radius:10px;padding:15px 15px 15px 46px;
+    box-shadow:0 10px 30px rgba(60,45,25,.3), inset 0 0 0 1px #b9a37c;
+  }
+  .spread::before{        /* 中缝阴影 */
+    content:"";position:absolute;left:calc(50% + 8px);top:15px;bottom:15px;width:30px;
+    transform:translateX(-50%);pointer-events:none;z-index:5;
+    background:linear-gradient(90deg,rgba(90,70,40,.005),rgba(90,70,40,.22) 46%,rgba(90,70,40,.005));
+  }
+  .spread::after{         /* 装订孔 */
+    content:"";position:absolute;left:11px;top:15px;bottom:15px;width:24px;
+    background-image:radial-gradient(circle at 12px 15px, rgba(60,45,25,.55) 6px, transparent 7px);
+    background-size:24px 38px;background-repeat:repeat-y;pointer-events:none;
+  }
+  .leaf{position:relative;background:#fdfaf2;min-height:560px;overflow:hidden;touch-action:none}
+  .leaf.l{background:linear-gradient(90deg,#f4ecd8,#fdfaf2 9%);border-radius:6px 0 0 6px}
+  .leaf.r{background:linear-gradient(270deg,#f4ecd8,#fdfaf2 9%);border-radius:0 6px 6px 0;
+          box-shadow:-1px 0 0 rgba(150,130,95,.4)}
+  .leaf .leafin{position:relative;width:100%;height:100%;min-height:560px}
+  .leaf-u{position:absolute;cursor:grab;user-select:none;transform-origin:center center}
+  .leaf-u.drag{cursor:grabbing;z-index:9999!important;opacity:.94}
+  .leaf-u.sel{outline:2px dashed var(--teal);outline-offset:3px}
+  .leaf-u img{display:block;width:100%;height:auto;pointer-events:none;
+              filter:drop-shadow(0 2px 4px rgba(90,72,45,.26))}
+  .leaf-u .tx{width:100%;min-height:1.4em;line-height:1.55;white-space:pre-wrap;word-break:break-word;
+              padding:3px 5px;outline:none;border-radius:4px}
+  .leaf-u .tx:focus{background:rgba(255,255,255,.62);outline:1px dashed var(--gold)}
+  .leaf-u .tape{position:absolute;left:50%;top:-11px;transform:translateX(-50%) rotate(-3deg);
+                width:62%;height:19px;background:rgba(232,214,166,.85);
+                border-left:1px dashed rgba(255,255,255,.7);border-right:1px dashed rgba(255,255,255,.7);
+                box-shadow:0 1px 3px rgba(90,72,45,.2);pointer-events:none}
+  .leaf-u .rs{position:absolute;right:-7px;bottom:-7px;width:15px;height:15px;border-radius:3px;
+              background:var(--teal);border:2px solid #fff;cursor:nwse-resize;opacity:0;transition:.15s}
+  .leaf-u.sel .rs,.leaf-u:hover .rs{opacity:1}
+  .leaf-u .del{position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;
+               background:var(--red);color:#fff;font-size:11px;line-height:18px;text-align:center;
+               cursor:pointer;opacity:0;transition:.15s;font-weight:700}
+  .leaf-u.sel .del{opacity:1}
+  .lg{position:absolute;background:var(--gold);pointer-events:none;z-index:9000;opacity:.9}
+  .lg.v{width:1px;top:0;bottom:0}
+  .lg.h{height:1px;left:0;right:0}
+  .leaf-notes{padding:20px 20px 20px 26px;height:100%;overflow:auto}
+  .leaf-notes h3{margin:0 0 12px;font-size:15px;color:var(--teal-dk);
+                 border-bottom:1px solid var(--gold-lt);padding-bottom:7px}
+  .leaf-notes label.fld>span{font-size:12px}
+  .leaf-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+              justify-content:center;color:#a89b85;font-size:13.5px;text-align:center;padding:20px}
+
+  .leafbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:13px 0 11px}
+  .leafbar .lf{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:#fffdf7;
+               font-size:12.5px;cursor:pointer;color:var(--ink-soft)}
+  .leafbar .lf.active{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:700}
+  .leafbar .lf .n{opacity:.7;font-size:11px}
+
+  .side h3{margin:0 0 9px;font-size:13.5px;color:var(--teal-dk);
+           border-bottom:1px solid var(--gold-lt);padding-bottom:6px;
+           display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .side .card{padding:13px 14px;margin-bottom:12px}
+  .papers{display:flex;gap:8px;flex-wrap:wrap}
+  .papers .pp{width:44px;height:44px;border-radius:7px;border:2px solid var(--line);cursor:pointer;
+              transition:.13s;position:relative}
+  .papers .pp:hover{border-color:var(--gold-lt)}
+  .papers .pp.on{border-color:var(--teal);box-shadow:0 0 0 2px rgba(63,125,116,.2)}
+  .papers .pp .lbl{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);
+                   font-size:9.5px;color:var(--ink-soft);white-space:nowrap}
+  .covers{display:flex;gap:9px;flex-wrap:wrap}
+  .covers .cv{width:40px;height:52px;border-radius:3px 7px 7px 3px;cursor:pointer;
+              border:2px solid transparent;box-shadow:0 2px 6px rgba(60,45,25,.25);position:relative}
+  .covers .cv.on{border-color:var(--teal);box-shadow:0 0 0 2px rgba(63,125,116,.25)}
+  .fontpick{display:flex;gap:6px;flex-wrap:wrap}
+  .fontpick .fp{padding:4px 9px;border-radius:7px;border:1px solid var(--line);background:#fffdf7;
+                font-size:12px;cursor:pointer}
+  .fontpick .fp.on{border-color:var(--teal);background:#eef6f4;font-weight:700}  /* 分组 */
+  .groupbox{border:1px solid var(--line);border-radius:11px;background:#fffdf7;margin-bottom:16px;overflow:hidden}
+  .groupbox>.gh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 14px;background:linear-gradient(180deg,#f4efe0,#efe8d6);border-bottom:1px solid var(--line)}
+  .groupbox>.gh .gt{font-weight:700;color:var(--teal-dk);font-size:14.5px}
+  .groupbox>.gb{padding:13px 14px}
+  /* 拼贴 */
+  .pagebar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
+  .pagebar .pg{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:#fffdf7;font-size:12.5px;cursor:pointer;color:var(--ink-soft)}
+  .pagebar .pg.active{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:700}
+  .pagebar .pg .n{opacity:.75;font-size:11px}
+  .canvaswrap{position:relative;border:2px solid var(--line);border-radius:11px;overflow:hidden;background:#fdfaf2;min-height:480px;touch-action:none}
+  .canvaswrap.gridbg{background-image:linear-gradient(rgba(63,125,116,.13) 1px, transparent 1px),linear-gradient(90deg, rgba(63,125,116,.13) 1px, transparent 1px);background-size:28px 28px}
+  .tile{position:absolute;cursor:grab;user-select:none;transform-origin:center center}
+  .tile img{display:block;width:100%;height:auto;pointer-events:none;filter:drop-shadow(0 2px 5px rgba(90,72,45,.3))}
+  .tile.sel{outline:2px dashed var(--teal);outline-offset:3px}
+  .tile.drag{cursor:grabbing;z-index:999!important;opacity:.92}
+  .tile .tag{position:absolute;left:50%;bottom:-19px;transform:translateX(-50%);font-size:10.5px;white-space:nowrap;background:rgba(58,49,40,.82);color:#fff;padding:1px 7px;border-radius:999px;opacity:0;transition:.15s;pointer-events:none}
+  .tile:hover .tag,.tile.sel .tag{opacity:1}
+  /* 吸附辅助线 */
+  .guide{position:absolute;background:var(--gold);pointer-events:none;z-index:900;opacity:.9}
+  .guide.v{width:1px;top:0;bottom:0}
+  .guide.h{height:1px;left:0;right:0}
+  .palette{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-start}
+  .palette .p{border:1px solid var(--line);border-radius:8px;background:#fffdf7;padding:6px;width:92px;cursor:grab;text-align:center}
+  .palette .p img{max-width:100%;height:56px;object-fit:contain;display:block;margin:0 auto;background:repeating-conic-gradient(#f0ece0 0% 25%, #fff 0% 50%) 50%/12px 12px;border-radius:5px}
+  .palette .p .n{font-size:11px;margin-top:4px;color:var(--ink-soft);line-height:1.35;word-break:break-all}
+  .badgewall{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:14px}
+  .badgewall .b{text-align:center;padding:12px 8px;border:1px solid var(--line);border-radius:11px;background:linear-gradient(180deg,#fffdf7,#faf5e8)}
+  .badgewall .b img{max-width:100%;height:88px;object-fit:contain;display:block;margin:0 auto 7px;filter:drop-shadow(0 2px 4px rgba(90,72,45,.25))}
+  .badgewall .b .n{font-weight:700;font-size:13px}
+  .badgewall .b .s{font-size:11px;color:var(--ink-soft)}
+  .entrycard{border:1px solid var(--line);border-radius:10px;background:#fffdf7;padding:13px 15px;margin-bottom:11px}
+  .entrycard .hd{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+  .entrycard .hd .t{font-weight:700;font-size:15px;color:var(--teal-dk)}
+  .entrycard .kv{font-size:12.5px;color:var(--ink-soft);display:flex;gap:13px;flex-wrap:wrap;margin-bottom:6px}
+  .entrycard .note{font-size:13px;white-space:pre-wrap;line-height:1.7}
+  .entrycard .bs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .entrycard .bs img{height:40px;border-radius:6px;border:1px solid var(--line);background:#fff}
+
+  .usage{height:9px;background:var(--parch-2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .usage>i{display:block;height:100%;background:linear-gradient(90deg,#8fbf7a,#5f8b4c);transition:width .3s}
+  .usage.warn>i{background:linear-gradient(90deg,#e0b45c,#c9902f)}
+  .usage.crit>i{background:linear-gradient(90deg,#d9765f,#b0473c)}
+
+/* ---------- 自由涂鸦 ---------- */
+.leaf.r{position:relative}
+.sbink{position:absolute;left:0;top:0;z-index:5;pointer-events:none;touch-action:none}
+.leaf.r.drawing .sbink{pointer-events:auto;cursor:crosshair}
+.leaf.r.drawing .leafin{pointer-events:none}
+.leaf.r.drawing .leaf-u{pointer-events:none}
+.leaf.r.drawing{outline:2px dashed var(--teal,#4ec9d4);outline-offset:3px}
+
+/* ---------- 自由涂鸦 · 悬浮工具栏 ---------- */
+#inkBar{display:none}
+#inkBar.on{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+  background:linear-gradient(180deg,#2c3742,#222b34);
+  border:1px solid #3d4b58;border-radius:13px;padding:8px 11px;
+  box-shadow:0 12px 34px rgba(0,0,0,.42);
+  z-index:260;max-width:calc(100vw - 24px);
+}
+#inkBar.floating{transform:none}
+#inkBar .ib-grip{
+  cursor:grab;color:#7d8f9e;font-size:16px;line-height:1;padding:0 3px;user-select:none;
+}
+#inkBar .ib-grip:active{cursor:grabbing}
+#inkBar .ib-sep{width:1px;height:22px;background:#3d4b58}
+#inkBar .ib-tools,#inkBar .ib-sizes,#inkBar .ib-colors,#inkBar .ib-acts{display:flex;gap:5px;align-items:center}
+#inkBar button{
+  background:#333f4b;border:1px solid #46545f;color:#dfe8f2;border-radius:8px;
+  cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;transition:.12s;
+}
+#inkBar .ib-t{width:32px;height:30px;font-size:15px}
+#inkBar .ib-s{width:28px;height:30px}
+#inkBar .ib-s i{display:block;background:#dfe8f2;border-radius:50%}
+#inkBar .ib-c{width:22px;height:22px;border-radius:50%;border:2px solid #55636f}
+#inkBar button:hover{border-color:#4ec9d4;color:#fff}
+#inkBar .ib-t.on,#inkBar .ib-s.on{border-color:#e8b04b;background:#4a4433;color:#ffe6b0}
+#inkBar .ib-c.on{border-color:#e8b04b;box-shadow:0 0 0 2px rgba(232,176,75,.45)}
+#inkBar .ib-a{width:30px;height:30px;font-size:14px}
+#inkBar .ib-close{border-color:#7a4038;color:#e8a99f}
+#inkBar .ib-close:hover{border-color:#d9776b;color:#fff;background:#5c332e}
+#inkBar .ib-custom input{
+  width:26px;height:26px;padding:0;border:2px solid #55636f;border-radius:50%;
+  background:none;cursor:pointer;
+}
+#inkBar .ib-hint{color:#8ea0b5;font-size:11px;margin-left:2px;white-space:nowrap}
+
+/* ---------- 文字的移动手柄 ---------- */
+.leaf-u .mv{
+  position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+  width:17px;height:26px;line-height:26px;text-align:center;
+  font-size:12px;color:#fff;background:var(--teal,#4ec9d4);
+  border-radius:5px;cursor:grab;opacity:0;transition:.12s;
+  user-select:none;z-index:3;box-shadow:0 1px 4px rgba(0,0,0,.25);
+}
+.leaf-u:hover .mv,.leaf-u.sel .mv{opacity:.95}
+.leaf-u .mv:active{cursor:grabbing}
+.leaf-u.drag .mv{opacity:1}
+
+/* ---------- 徽章墙（紧凑版） ---------- */
+.badgewall{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:7px}
+.badgewall .b{
+  text-align:center;padding:6px 4px 5px;border:1px solid var(--line);border-radius:8px;
+  background:linear-gradient(180deg,#fffdf7,#faf5e8);cursor:pointer;transition:.12s;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+}
+.badgewall .b:hover{
+  border-color:var(--teal,#4ec9d4);transform:translateY(-2px);
+  box-shadow:0 5px 14px rgba(90,72,45,.2);background:#fff;
+}
+.badgewall .b img{
+  max-width:100%;height:42px;width:auto;object-fit:contain;display:block;margin:0 auto 4px;
+  filter:drop-shadow(0 1px 2px rgba(90,72,45,.28));
+}
+.badgewall .b .n{
+  font-weight:600;font-size:10.5px;line-height:1.25;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all;
+}
+
+/* ---------- 贴纸库（紧凑版，和徽章墙一致的风格） ---------- */
+/* 说明：.stickerlib / .sk 以前完全没有样式定义，图片按原始尺寸撑开，
+   所以贴纸库看着又大又乱。这里补上并压紧。 */
+.stickerlib{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));
+  gap:7px;max-height:52vh;overflow:auto;padding:2px 1px 4px;
+}
+.stickerlib .sk{
+  text-align:center;padding:6px 4px 5px;border:1px solid var(--line);border-radius:8px;
+  background:linear-gradient(180deg,#fffdf7,#faf5e8);cursor:pointer;transition:.12s;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  overflow:hidden;
+}
+.stickerlib .sk:hover{
+  border-color:var(--teal,#4ec9d4);transform:translateY(-2px);
+  box-shadow:0 5px 14px rgba(90,72,45,.2);background:#fff;
+}
+.stickerlib .sk img{
+  max-width:100%;height:46px;width:auto;object-fit:contain;display:block;margin:0 auto 4px;
+  filter:drop-shadow(0 1px 2px rgba(90,72,45,.28));
+}
+.stickerlib .sk .n{
+  font-weight:600;font-size:10.5px;line-height:1.25;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all;
+}
+/* 侧栏里的贴纸库再小一号，给纸张留地方 */
+.sb-side .stickerlib{grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px;max-height:40vh}
+.sb-side .stickerlib .sk img{height:38px}
+.sb-side .stickerlib .sk .n{font-size:10px}
+
+/* ---------- 旋转手柄 ---------- */
+.leaf-u .rot{
+  position:absolute;left:-11px;top:-11px;width:20px;height:20px;line-height:19px;
+  text-align:center;font-size:13px;color:#fff;
+  background:var(--gold,#e8b04b);border-radius:50%;cursor:grab;
+  opacity:0;transition:.12s;user-select:none;z-index:4;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+.leaf-u:hover .rot,.leaf-u.sel .rot{opacity:1}
+.leaf-u .rot:active{cursor:grabbing}
+.leaf-u.rotating .rot{opacity:1;background:var(--teal,#4ec9d4)}
+.leaf-u.rotating{outline:2px dashed var(--teal,#4ec9d4);outline-offset:3px}
+/* 转动时实时显示角度 */
+.leaf-u .rotbadge{
+  position:absolute;left:50%;top:-26px;transform:translateX(-50%);
+  background:rgba(44,55,66,.93);color:#fff;font-size:11px;font-weight:700;
+  padding:2px 7px;border-radius:9px;white-space:nowrap;pointer-events:none;z-index:6;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>📔</span>手账本</div>
+  <div class="page-sub">上传徽章与奖励贴纸，把每一段旅程写成一本可以翻开的笔记本。</div>
+
+  <div id="expiryBanner"></div>
+
+  <div class="grid c2">
+    <div class="card">
+      <h2>📊 手账概览</h2>
+      <div id="statsBox"></div>
+    </div>
+    <div class="card">
+      <h2>💾 存储与备份</h2>
+      <div class="hint" style="margin-bottom:9px">
+        图块以压缩后的图片保存在浏览器本地，容量有限（通常约 5MB）。
+        徽章和贴纸攒多了建议定期「导出手账」备份。
+      </div>
+      <div id="usageBox"></div>
+      <div class="btnrow">
+        <a class="btn sm" href="map.html">🗺️ 去冒险地图 →</a>
+        <button class="ghost sm" id="btnExportJ">导出手账</button>
+        <button class="ghost sm" id="btnImportJ">导入手账</button>
+        <button class="danger sm" id="btnClearJ">清空手账</button>
+      </div>
+      <input type="file" id="fileImportJ" accept=".json" style="display:none">
+    </div>
+  </div>
+
+  <div class="jtab" id="jtab" style="margin-top:18px"></div>
+  <div id="pane"></div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/storage.js?v=a1e43811"></script>
+<script src="js/core/worldmap.js?v=d775f824"></script>
+<script src="js/core/journal.js?v=0789d6b9"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script>DE.ui.bootPage({ after: function () {
+  var $ = DE.ui.$;
+  var c = DE.store.character;
+  var J = DE.journal.empty();      // 先占位，随后异步载入真实数据
+  DE.journal.book = J;
+  var tab = "upload";
+  var queue = [];
+  var uploadKind = "map";
+  var uploadGroup = "";
+  var filterKind = "all";
+  var filterQ = "";
+  var groupMode = "flat";     // flat | grouped
+  var selId = null;
+  var snapOn = true;
+  var SNAP_TOL = 9;
+
+  var TABS = [
+    { id:"upload",  label:"📤 上传贴纸" },
+    { id:"collect", label:"🗂️ 我的收藏" },
+    { id:"wall",    label:"🏅 徽章墙 / 贴纸库" },
+    { id:"log",     label:"📝 冒险记录" }
+  ];
+
+  /* 异步保存；返回 Promise<boolean> */
+  function persist() {
+    return DE.journal.save(J).then(function (r) {
+      if (!r || !r.ok) { DE.ui.toast((r && r.error) || "保存失败。", "err"); return false; }
+      refreshUsage();
+      return true;
+    }).catch(function (e) {
+      DE.ui.toast("保存失败：" + (e && e.message ? e.message : e), "err");
+      return false;
+    });
+  }
+  function kindOf(k) { return DE.STICKER_KINDS[k] || DE.STICKER_KINDS.sticker; }
+  function imgTag(s, extra) {
+    return '<img src="' + s.dataUrl + '" alt="' + DE.ui.esc(s.name) + '"' + (extra || "") + ">";
+  }
+  function groupName(g) { return g ? g : "未分组"; }
+  function renderTabs() {
+    $("#jtab").innerHTML = TABS.map(function (t) {
+      return '<span class="chip' + (tab === t.id ? " active" : "") + '" data-jt="' + t.id + '">' + t.label + "</span>";
+    }).join("");
+    DE.ui.$$("[data-jt]").forEach(function (x) {
+      x.onclick = function () { tab = x.getAttribute("data-jt"); selId = null; render(); };
+    });
+  }
+
+  /* ---------- 概览与占用 ---------- */
+  var quota = null;
+  var persisted = false;
+
+  function refreshUsage() {
+    DE.storage.estimate().then(function (q) { quota = q; renderUsage(); });
+  }
+
+  function renderUsage() {
+    var st = DE.journal.stats(J);
+    var contentBytes = st.bytes;
+    var mode = DE.storage.mode();
+    var isIDB = mode === "idb";
+
+    var head, bar, note = "";
+    if (quota && quota.quota) {
+      var pct = Math.min(100, quota.percent);
+      var cls = pct >= 85 ? "crit" : (pct >= 60 ? "warn" : "");
+      head = "已用 <b>" + DE.storage.fmt(quota.usage) + "</b> / 可用 <b>" + DE.storage.fmt(quota.quota) +
+             "</b>（" + pct.toFixed(1) + "%）　·　手账内容 " + DE.storage.fmt(contentBytes);
+      bar = '<div class="usage ' + cls + '"><i style="width:' + pct + '%"></i></div>';
+      note = '<div class="hint" style="margin-top:7px">浏览器为本站分配的空间还剩 <b>' +
+             DE.storage.fmt(quota.available) + "</b>（随磁盘剩余空间变化）。</div>";
+      if (pct >= 85) {
+        note += '<div class="alert red" style="margin-top:9px"><span class="ico">\u26a0\ufe0f</span>' +
+          "<div>空间快用满了。请导出备份后清理，或删掉一些图块。</div></div>";
+      }
+    } else {
+      head = "手账内容 <b>" + DE.storage.fmt(contentBytes) + "</b>（浏览器未提供额度信息）";
+      bar = "";
+    }
+
+    var modeBadge = isIDB
+      ? '<span class="badge green">IndexedDB · 大容量</span>'
+      : '<span class="badge red">localStorage · 仅约 5MB</span>';
+
+    DE.ui.$("#usageBox").innerHTML =
+      '<div class="inline" style="margin-bottom:8px">' + modeBadge +
+        (persisted ? '<span class="badge teal">已申请持久化</span>' : "") +
+        '<span style="margin-left:auto"></span>' +
+        '<button class="sm ghost" id="btnPersist">申请持久化存储</button>' +
+      "</div>" +
+      '<div class="hint" style="margin-bottom:5px">' + head + "</div>" + bar + note +
+      (isIDB ? "" : '<div class="alert gold" style="margin-top:9px"><span class="ico">\ud83d\udca1</span>' +
+        "<div>当前浏览器或隐私模式下无法使用 IndexedDB，只能用小容量的 localStorage。" +
+        "换用普通窗口的 Chrome / Edge 即可获得 GB 级空间。</div></div>");
+
+    var bp = DE.ui.$("#btnPersist");
+    if (bp) bp.onclick = function () {
+      DE.storage.persist().then(function (granted) {
+        persisted = granted;
+        DE.ui.toast(granted
+          ? "已获得持久化存储：浏览器不会自动清理本站数据。"
+          : "浏览器暂未授予持久化（通常需要把本站加入书签或经常访问）。数据仍会正常保存。",
+          granted ? "ok" : "");
+        renderUsage();
+      });
+    };
+  }
+
+  function renderStats() {
+    var st = DE.journal.stats(J);
+    $("#statsBox").innerHTML =
+      '<div class="statgrid">' +
+        '<div class="stat"><div class="k">图块总数</div><div class="v">' + st.total + "</div></div>" +
+        '<div class="stat"><div class="k">徽章</div><div class="v">' + (st.byKind.badge || 0) + "</div></div>" +
+        '<div class="stat"><div class="k">徽章</div><div class="v">' + (st.byKind.badge || 0) + "</div></div>" +
+        '<div class="stat"><div class="k">冒险记录</div><div class="v">' + st.entries + "</div></div>" +
+        '<div class="stat"><div class="k">手账本</div><div class="v">' + st.entries + "</div></div>" +
+        '<div class="stat"><div class="k">冒险记录</div><div class="v">' + st.entries + "</div></div>" +
+      "</div>";
+  }
+
+  /* 分组下拉（用于上传 / 编辑 / 建页） */
+  function groupOptions(sel) {
+    return '<option value="">— 未分组 —</option>' +
+      DE.journal.allGroups(J).map(function (g) {
+        return '<option value="' + DE.ui.esc(g) + '"' + (g === sel ? " selected" : "") + ">" +
+          DE.ui.esc(g) + "</option>";
+      }).join("");
+  }
+
+  /* ============================================================
+   *  上传图块
+   * ============================================================ */
+  function paneUpload() {
+    var kinds = Object.keys(DE.STICKER_KINDS).map(function (k) {
+      var K = DE.STICKER_KINDS[k];
+      return '<div class="k' + (uploadKind === k ? " on" : "") + '" data-kind="' + k + '">' +
+        '<div class="i">' + K.icon + '</div><div class="n">' + K.label + '</div>' +
+        '<div class="d">' + DE.ui.esc(K.desc) + "</div></div>";
+    }).join("");
+
+    var qhtml = "";
+    if (queue.length) {
+      qhtml = '<h3 style="margin-top:16px">待入库（' + queue.length + " 张）</h3>" +
+        queue.map(function (q, i) {
+          return '<div class="queueitem">' + imgTag({ dataUrl: q.dataUrl, name: q.fileName }) +
+            '<div class="fields">' +
+              '<input type="text" data-qn="' + i + '" value="' + DE.ui.esc(q.name) + '" placeholder="名称，例如：迷雾森林北侧">' +
+              '<input type="text" data-qs="' + i + '" value="' + DE.ui.esc(q.source) + '" placeholder="来源，例如：第 3 次旅行 / 银月镇">' +
+              '<select data-qg="' + i + '">' + groupOptions(q.group) + "</select>" +
+              '<div style="font-size:11.5px;color:var(--ink-soft)">' +
+                q.origWidth + "×" + q.origHeight + " → " + q.width + "×" + q.height +
+                (q.resized ? "（已压缩）" : "（原尺寸）") + "　" + DE.journal.fmtBytes(q.bytes) +
+              "</div>" +
+            "</div>" +
+            '<button class="sm danger" data-qd="' + i + '">移除</button></div>';
+        }).join("") +
+        '<div class="btnrow"><button class="primary" id="btnCommit">全部存入收藏（' + queue.length + "）</button>" +
+        '<button class="ghost" id="btnClearQ">清空待入库</button></div>';
+    }
+
+    return '<div class="card"><h2>📤 上传徽章 / 奖励贴纸</h2>' +
+      '<div class="hint" style="margin-bottom:11px">' +
+      "把你画好的徽章、奖励贴纸、装饰素材传上来。图片会自动压到长边 " + DE.journal.DEFAULTS.maxSide +
+      " 像素，PNG 保留透明底（贴纸叠图用），JPG 转成压缩格式以节省空间。</div>" +
+      '<div style="font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:5px">1. 选择类型</div>' +
+      '<div class="kindpick">' + kinds + "</div>" +
+      '<div class="row" style="align-items:flex-end">' +
+        '<label class="fld" style="max-width:260px"><span>归入分组（季节 / 城镇 / 章节都行）</span>' +
+          '<input type="text" id="upGroup" list="grpList" value="' + DE.ui.esc(uploadGroup) + '" placeholder="例如：春之章 / 银月镇">' +
+          '<datalist id="grpList">' + DE.journal.allGroups(J).map(function (g) {
+            return '<option value="' + DE.ui.esc(g) + '">';
+          }).join("") + "</datalist></label>" +
+        '<div style="flex:0 0 auto;padding-bottom:11px">' +
+          '<span class="hint">留空则归入「未分组」。上传后仍可在收藏里逐张修改。</span></div>' +
+      "</div>" +
+      '<div style="font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:12px 0 5px">2. 选择或拖入图片（可多选）</div>' +
+      '<div class="dropzone" id="dz">' +
+        '<span class="big">🖼️</span>' +
+        '<div class="t">点击选择图片，或把图片拖到这里</div>' +
+        '<div class="h">支持 PNG / JPG / WebP / GIF，可一次选多张</div>' +
+      "</div>" +
+      '<input type="file" id="fileUp" accept="image/*" multiple style="display:none">' +
+      qhtml +
+      '<details style="margin-top:16px"><summary>压缩设置</summary><div class="body">' +
+        '<div class="row" style="margin-top:6px">' +
+          '<label class="fld"><span>长边最大像素</span><input type="number" id="optMax" min="320" max="4096" step="16" value="' +
+            DE.journal.DEFAULTS.maxSide + '"></label>' +
+          '<label class="fld"><span>JPG 质量（0.3 ~ 1）</span><input type="number" id="optQ" min="0.3" max="1" step="0.02" value="' +
+            DE.journal.DEFAULTS.quality + '"></label>' +
+        "</div>" +
+        '<div class="hint">徽章 / 贴纸 512~800 就够清晰了，也更省空间。改了设置后重新选择图片即可生效。</div>' +
+      "</div></details></div>";
+  }
+
+  function bindUpload() {
+    DE.ui.$$("[data-kind]").forEach(function (k) {
+      k.onclick = function () { uploadKind = k.getAttribute("data-kind"); render(); };
+    });
+    var ug = $("#upGroup");
+    if (ug) ug.oninput = function () { uploadGroup = this.value; };
+    var dz = $("#dz"), fi = $("#fileUp");
+    if (dz) {
+      dz.onclick = function () { fi.click(); };
+      ["dragenter", "dragover"].forEach(function (ev) {
+        dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add("over"); });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove("over"); });
+      });
+      dz.addEventListener("drop", function (e) {
+        var fs = e.dataTransfer && e.dataTransfer.files;
+        if (fs && fs.length) handleFiles(fs);
+      });
+    }
+    if (fi) fi.onchange = function () { if (this.files.length) handleFiles(this.files); };
+    DE.ui.$$("[data-qd]").forEach(function (b) {
+      b.onclick = function () { queue.splice(+b.getAttribute("data-qd"), 1); render(); };
+    });
+    DE.ui.$$("[data-qn]").forEach(function (inp) {
+      inp.oninput = function () { queue[+inp.getAttribute("data-qn")].name = inp.value; };
+    });
+    DE.ui.$$("[data-qs]").forEach(function (inp) {
+      inp.oninput = function () { queue[+inp.getAttribute("data-qs")].source = inp.value; };
+    });
+    DE.ui.$$("[data-qg]").forEach(function (sel) {
+      sel.onchange = function () { queue[+sel.getAttribute("data-qg")].group = sel.value; };
+    });
+    var bc = $("#btnCommit");
+    if (bc) bc.onclick = commitQueue;
+    var cq = $("#btnClearQ");
+    if (cq) cq.onclick = function () { queue = []; render(); };
+  }
+
+  function opts() {
+    return {
+      maxSide: parseInt(($("#optMax") && $("#optMax").value) || DE.journal.DEFAULTS.maxSide, 10) || 1280,
+      quality: parseFloat(($("#optQ") && $("#optQ").value) || DE.journal.DEFAULTS.quality) || 0.82
+    };
+  }
+
+  function handleFiles(files) {
+    var list = Array.prototype.slice.call(files);
+    if (!list.length) return;
+    var done = 0, failed = [];
+    DE.ui.toast("正在处理 " + list.length + " 张图片…", "");
+    list.forEach(function (f) {
+      DE.journal.readImage(f, opts()).then(function (r) {
+        queue.push({
+          dataUrl: r.dataUrl, width: r.width, height: r.height,
+          origWidth: r.origWidth, origHeight: r.origHeight,
+          resized: r.resized, bytes: r.bytes, kind: uploadKind,
+          name: f.name.replace(/\.[^.]+$/, ""), source: "", group: uploadGroup || "", fileName: f.name
+        });
+        done++;
+        if (done + failed.length === list.length) finish();
+      }).catch(function (e) {
+        failed.push(f.name + "：" + e.message);
+        if (done + failed.length === list.length) finish();
+      });
+    });
+    function finish() {
+      if (failed.length) DE.ui.toast("有 " + failed.length + " 张未能处理：" + failed.slice(0, 2).join("；"), "err");
+      else DE.ui.toast("已加入 " + done + " 张待入库图块。", "ok");
+      render();
+    }
+  }
+
+  function commitQueue() {
+    if (!queue.length) { DE.ui.toast("待入库是空的。", "err"); return; }
+    var n = 0;
+    queue.forEach(function (q) {
+      DE.journal.addSticker(J, {
+        kind: q.kind, name: q.name || "未命名图块", dataUrl: q.dataUrl,
+        width: q.width, height: q.height, source: q.source, group: q.group,
+        earnedISO: new Date().toISOString()
+      });
+      DE.journal.addGroup(J, q.group);
+      n++;
+    });
+    persist().then(function (ok) {
+      if (!ok) return;
+      queue = [];
+      DE.ui.toast("已存入 " + n + " 张图块。", "ok");
+      tab = "collect";
+      render();
+    });
+  }
+
+  /* ============================================================
+   *  我的收藏（支持分组视图）
+   * ============================================================ */
+  function stickerCard(s) {
+    var K = kindOf(s.kind);
+    return '<div class="stickercard">' +
+      '<div class="thumb">' + imgTag(s) + "</div>" +
+      '<div class="nm">' + DE.ui.esc(s.name) + "</div>" +
+      '<div class="meta">' + K.icon + " " + K.label +
+        (s.group ? '　<span class="badge gold">' + DE.ui.esc(s.group) + "</span>" : "") + "<br>" +
+        (s.source ? DE.ui.esc(s.source) + "<br>" : "") +
+        (s.width || "?") + "×" + (s.height || "?") + "　" + DE.journal.fmtBytes(s.bytes) + "</div>" +
+      '<div class="acts">' +
+        '<button class="sm ghost" data-rename="' + s.id + '">编辑</button>' +
+        '<button class="sm danger" data-del="' + s.id + '">删除</button>' +
+      "</div></div>";
+  }
+
+  function paneCollect() {
+    var all = J.stickers || [];
+    var list = all.filter(function (s) {
+      if (filterKind !== "all" && s.kind !== filterKind) return false;
+      if (filterQ && (s.name + " " + (s.source || "") + " " + (s.group || "")).toLowerCase().indexOf(filterQ) < 0) return false;
+      return true;
+    });
+    var chips = ['<span class="chip' + (filterKind === "all" ? " active" : "") + '" data-fk="all">全部 ' + all.length + "</span>"];
+    Object.keys(DE.STICKER_KINDS).forEach(function (k) {
+      var n = all.filter(function (s) { return s.kind === k; }).length;
+      chips.push('<span class="chip' + (filterKind === k ? " active" : "") + '" data-fk="' + k + '">' +
+        DE.STICKER_KINDS[k].icon + " " + DE.STICKER_KINDS[k].label + " " + n + "</span>");
+    });
+
+    var body;
+    if (!all.length) {
+      body = '<div class="empty"><span class="big">🗂️</span>收藏还是空的。<br>' +
+        '<span class="hint">去「📤 上传贴纸」把徽章和贴纸传上来吧。</span></div>';
+    } else if (!list.length) {
+      body = '<div class="empty">没有符合条件的图块。</div>';
+    } else if (groupMode === "grouped") {
+      /* 按分组分块显示 */
+      var order = DE.journal.allGroups(J);
+      var buckets = {};
+      list.forEach(function (s) { var g = s.group || ""; (buckets[g] = buckets[g] || []).push(s); });
+      var keys = order.filter(function (g) { return buckets[g]; });
+      if (buckets[""]) keys = keys.concat([""]);
+      body = keys.map(function (g) {
+        var items = buckets[g] || [];
+        return '<div class="groupbox"><div class="gh">' +
+          '<span class="gt">' + (g ? "📁 " + DE.ui.esc(g) : "📂 未分组") + "</span>" +
+          '<span class="badge">' + items.length + " 张</span>" +
+          (g ? '<span style="margin-left:auto"></span><button class="sm ghost" data-delgroup="' + DE.ui.esc(g) + '">解散分组</button>' : "") +
+          '</div><div class="gb"><div class="stickergrid">' +
+          items.map(stickerCard).join("") + "</div></div></div>";
+      }).join("");
+    } else {
+      body = '<div class="stickergrid">' + list.map(stickerCard).join("") + "</div>";
+    }
+
+    return '<div class="card"><h2>🗂️ 我的收藏</h2>' +
+      '<div class="filters"><div class="chips">' + chips.join("") + "</div>" +
+      '<input type="text" id="fq" placeholder="搜索名称 / 来源 / 分组…" value="' + DE.ui.esc(filterQ) + '">' +
+      '<div class="chips">' +
+        '<span class="chip' + (groupMode === "flat" ? " active" : "") + '" data-gm="flat">平铺</span>' +
+        '<span class="chip' + (groupMode === "grouped" ? " active" : "") + '" data-gm="grouped">按分组</span>' +
+      "</div>" +
+      '<span style="margin-left:auto"></span>' +
+      '<button class="sm primary" id="btnGoUpload">＋ 上传新图块</button></div>' +
+      body + "</div>";
+  }
+
+  function bindCollect() {
+    DE.ui.$$("[data-fk]").forEach(function (x) {
+      x.onclick = function () { filterKind = x.getAttribute("data-fk"); render(); };
+    });
+    DE.ui.$$("[data-gm]").forEach(function (x) {
+      x.onclick = function () { groupMode = x.getAttribute("data-gm"); render(); };
+    });
+    var fq = $("#fq");
+    if (fq) fq.oninput = function () { filterQ = this.value.toLowerCase(); render(); };
+    var gu = $("#btnGoUpload");
+    if (gu) gu.onclick = function () { tab = "upload"; render(); };
+
+    DE.ui.$$("[data-delgroup]").forEach(function (b) {
+      b.onclick = function () {
+        var g = b.getAttribute("data-delgroup");
+        DE.ui.confirm({
+          title: "解散分组", okText: "解散",
+          body: "「" + g + "」分组会被移除，里面的贴纸都会变成「未分组」，图片不会丢失。"
+        }).then(function (ok) {
+          if (!ok) return;
+          DE.journal.removeGroup(J, g); persist().then(render);
+          DE.ui.toast("已解散分组「" + g + "」。", "ok"); render();
+        });
+      };
+    });
+
+    DE.ui.$$("[data-del]").forEach(function (b) {
+      b.onclick = function () {
+        var s = DE.journal.findSticker(J, b.getAttribute("data-del"));
+        DE.ui.confirm({ title: "删除图块", body: "确定删除〈" + s.name + "〉吗？此操作无法撤销。", okText: "删除" })
+          .then(function (ok) {
+            if (!ok) return;
+            DE.journal.removeSticker(J, s.id); persist().then(render);
+            DE.ui.toast("已删除。", "ok"); render();
+          });
+      };
+    });
+    DE.ui.$$("[data-rename]").forEach(function (b) {
+      b.onclick = function () { editSticker(DE.journal.findSticker(J, b.getAttribute("data-rename"))); };
+    });
+  }
+
+  function editSticker(s) {
+    var ov = DE.ui.el("div", { style: "position:fixed;inset:0;background:rgba(40,32,22,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px" });
+    ov.innerHTML = '<div class="card" style="max-width:470px;width:100%;max-height:88vh;overflow:auto;margin:0">' +
+      "<h2>编辑图块</h2>" +
+      '<div style="text-align:center;margin-bottom:10px">' + imgTag(s, ' style="max-width:100%;max-height:170px;object-fit:contain"') + "</div>" +
+      '<label class="fld"><span>名称</span><input type="text" id="eName" value="' + DE.ui.esc(s.name) + '"></label>' +
+      '<label class="fld"><span>类型</span><select id="eKind">' +
+        Object.keys(DE.STICKER_KINDS).map(function (k) {
+          return '<option value="' + k + '"' + (s.kind === k ? " selected" : "") + ">" +
+            DE.STICKER_KINDS[k].icon + " " + DE.STICKER_KINDS[k].label + "</option>";
+        }).join("") + "</select></label>" +
+      '<label class="fld"><span>分组</span><input type="text" id="eGroup" list="eGroupList" value="' + DE.ui.esc(s.group || "") + '" placeholder="季节 / 城镇 / 章节">' +
+        '<datalist id="eGroupList">' + DE.journal.allGroups(J).map(function (g) {
+          return '<option value="' + DE.ui.esc(g) + '">';
+        }).join("") + "</datalist></label>" +
+      '<label class="fld"><span>来源（哪次旅行 / 哪个城镇）</span><input type="text" id="eSrc" value="' + DE.ui.esc(s.source || "") + '"></label>' +
+      '<label class="fld"><span>备注</span><textarea id="eNote">' + DE.ui.esc(s.note || "") + "</textarea></label>" +
+      '<div class="btnrow" style="justify-content:flex-end"><button class="ghost" data-x="0">取消</button>' +
+      '<button class="primary" data-x="1">保存</button></div></div>';
+    document.body.appendChild(ov);
+    DE.ui.$$("[data-x]", ov).forEach(function (b) {
+      b.onclick = function () {
+        if (b.getAttribute("data-x") === "1") {
+          s.name = ov.querySelector("#eName").value || "未命名图块";
+          s.kind = ov.querySelector("#eKind").value;
+          s.group = ov.querySelector("#eGroup").value;
+          s.source = ov.querySelector("#eSrc").value;
+          s.note = ov.querySelector("#eNote").value;
+          DE.journal.addGroup(J, s.group);
+          persist().then(render);
+          DE.ui.toast("已保存。", "ok");
+        }
+        document.body.removeChild(ov); render();
+      };
+    });
+  }
+
+  var editId = null;          // 正在编辑的冒险记录 id
+  var sbSelId = null;         // 拼贴页里选中的元素 id
+  var sbSnap = true;
+  var DRAWING = false;        // 是否处于自由涂鸦模式
+  var inkTool = "pen";        // pen | marker | eraser | line | rect | ellipse | arrow
+  var inkColor = "#3a3128";
+  var inkSize = 3;
+  var inkBarPos = null;       // 悬浮工具栏被拖到哪了 {x,y}
+  var INK_TOOLS = [
+    { id:"pen",     icon:"✏️", name:"画笔" },
+    { id:"marker",  icon:"🖍️", name:"荧光笔" },
+    { id:"eraser",  icon:"🧽", name:"橡皮" },
+    { id:"line",    icon:"📏", name:"直线" },
+    { id:"rect",    icon:"▭",  name:"矩形" },
+    { id:"ellipse", icon:"◯",  name:"椭圆" },
+    { id:"arrow",   icon:"➤",  name:"箭头" }
+  ];
+  var INK_COLORS = ["#3a3128","#b0473c","#d98b2b","#2f6b3d","#2b5d8a","#7a4a8a",
+                    "#c94f8a","#5b6b7a","#ffffff","#f2d06b"];
+  var libFilter = "all";
+  var libQ = "";
+
+  var SB_FONTS = [
+    { id:"hand",  name:"手写", css:'"Kaiti SC","STKaiti",KaiTi,"LXGW WenKai","Microsoft YaHei",cursive' },
+    { id:"serif", name:"宋体", css:'"Songti SC",SimSun,serif' },
+    { id:"sans",  name:"黑体", css:'"Microsoft YaHei","PingFang SC",sans-serif' },
+    { id:"mono",  name:"等宽", css:'ui-monospace,Consolas,"Courier New",monospace' }
+  ];
+  function sbFont(id) {
+    return (SB_FONTS.filter(function (f) { return f.id === id; })[0] || SB_FONTS[0]).css;
+  }
+  function paperOf(e) { return DE.journal.findPaper(e.paper || J.paper); }
+
+  var LIB_KINDS = {
+    badge:  { label:"徽章",     icon:"🏅" },
+    reward: { label:"奖励贴纸", icon:"🎁" },
+    sticker:{ label:"装饰贴纸", icon:"✨" },
+    stamp:  { label:"印章",     icon:"🔖" },
+    other:  { label:"其他",     icon:"🖼️" }
+  };
+
+  /* ---------- 列表视图 ---------- */
+﻿  /* ============================================================
+   *  手账本：书架视图（每本冒险记录 = 一本笔记本）
+   *  ============================================================ */
+  function paneLog() {
+    if (editId) return paneScrap();
+    return paneLogList();
+  }
+
+  /* 封面上的缩略：把第一张纸的前几个元素缩小画出来 */
+  /* 封面上的缩略：把第一张纸的前几个元素缩小画出来。
+     比例跟着封面大小走 —— 封面改小了，这里必须一起缩，否则缩略图会溢出。
+     纸的实际宽度约 420px，缩略框约 77x44。 */
+  var THUMB_K = 0.17;
+  function coverThumb(e) {
+    var leaves = DE.journal.leavesOf(e);
+    var first = leaves[0];
+    var items = DE.journal.itemsOfLeaf(first).slice(0, 6);
+    if (!items.length) return "";
+    return '<div class="nb-thumb">' + items.map(function (it) {
+      if (it.type === "text") {
+        return '<div class="tx" style="left:' + (it.x * THUMB_K) + "px;top:" + (it.y * THUMB_K) +
+          "px;font-size:" + Math.max(4, it.size * THUMB_K) + "px\">" +
+          DE.ui.esc((it.text || "").slice(0, 6)) + "</div>";
+      }
+      var lb = DE.journal.findLib(J, it.stickerId);
+      if (!lb) return "";
+      var w = (it.w || 110) * THUMB_K;
+      return '<img src="' + lb.dataUrl + '" style="left:' + (it.x * THUMB_K) + "px;top:" +
+        (it.y * THUMB_K) + "px;width:" + w + "px;transform:rotate(" + (it.rot || 0) + 'deg)">';
+    }).join("") + "</div>";
+  }
+
+  function paneLogList() {
+    var ents = J.entries || [];
+    var lib = J.library || [];
+
+    var newBox = '<div class="card" style="margin-bottom:16px"><h2>📝 新建一本手账</h2>' +
+      '<div class="row">' +
+        '<label class="fld"><span>标题</span><input type="text" id="eTitle" placeholder="例如：迷雾森林的岔路"></label>' +
+        '<label class="fld"><span>游戏内天数</span><input type="number" id="eDay" min="1" value="' + DE.clock.dayNumber() + '"></label>' +
+      "</div>" +
+      '<div class="row">' +
+        '<label class="fld"><span>地貌</span><input type="text" id="eTerrain" placeholder="例如：森林 / 湿地"></label>' +
+        '<label class="fld"><span>天气</span><select id="eWeather"><option value="">—</option>' +
+          DE.JOURNAL_WEATHERS.map(function (w) { return "<option>" + DE.ui.esc(w) + "</option>"; }).join("") +
+        "</select></label>" +
+        '<label class="fld"><span>同伴</span><input type="text" id="eMembers" placeholder="例如：维奥莱特、科尔温"></label>' +
+      "</div>" +
+      '<label class="fld"><span>收获与见闻</span><input type="text" id="eLoot" placeholder="例如：3 个药草、1 枚银月镇徽章"></label>' +
+      '<label class="fld"><span>正文</span><textarea id="eBody" placeholder="今天走了多久、遇到什么…（会写在笔记本的左页）"></textarea></label>' +
+      '<div class="hint" style="margin-bottom:9px">建立后进入摊开的笔记本：左页写记录，右页把徽章、奖励贴纸拼上去。</div>' +
+      '<div class="btnrow"><button class="primary" id="btnCreateScrap">建立手账本</button></div></div>';
+
+    var shelf = ents.length
+      ? '<div class="nb-shelf-wrap"><div class="nb-shelf">' + ents.map(function (e) {
+          var cv = DE.journal.findCover(e.cover);
+          var leaves = DE.journal.leavesOf(e);
+          var n = DE.journal.itemCount(e);
+          return '<div class="nb-book" data-open="' + e.id + '" title="点击翻开">' +
+            '<div class="nb-cover" style="background:' + cv.css + '">' +
+              '<span class="nb-strip"></span>' +
+              '<div class="nb-label">' +
+                '<div class="t" style="color:' + cv.ink + '">' + DE.ui.esc(e.title) + "</div>" +
+                '<div class="d">第 ' + e.day + " 天" +
+                  (e.terrain ? " · " + DE.ui.esc(e.terrain) : "") + "</div>" +
+              "</div>" +
+              coverThumb(e) +
+            "</div>" +
+            '<div class="nb-meta"><b>' + leaves.length + "</b> 张纸 · <b>" + n + "</b> 个贴纸/文字" +
+              (e.loot ? "<br>" + DE.ui.esc(e.loot.slice(0, 22)) : "") + "</div>" +
+            '<div class="btnrow" style="justify-content:center;margin-top:6px">' +
+              '<button class="sm primary" data-open2="' + e.id + '">翻开</button>' +
+              '<button class="sm ghost" data-expscrap="' + e.id + '">导出</button>' +
+              '<button class="sm danger" data-delen="' + e.id + '">删除</button>' +
+            "</div></div>";
+        }).join("") + "</div></div>"
+      : '<div class="sb-empty"><span class="big">📚</span>书架还是空的。<br>' +
+        '<span class="hint">用上面的表单建立第一本，然后把徽章和奖励贴纸拼上去。</span></div>';
+
+    return newBox + '<div class="card"><h2>📚 我的手账本' +
+      '<span class="hint" style="font-weight:400;margin-left:8px">共 ' + ents.length + " 本 · 贴纸库 " +
+      lib.length + " 张</span></h2>" + shelf + "</div>" + libCard(true);
+  }
+  /* 徽章墙：把上传的徽章 / 奖励贴纸铺成一面墙
+   * （以前这里只有一个空的 <span>，CSS 里的 .badgewall 从没被用过 —— 所以「徽章墙是空的」） */
+  /* 点徽章墙上的徽章 → 直接贴到最近一本手账的当前页 */
+  function stickToPaper(libId) {
+    var lb = DE.journal.findLib(J, libId);
+    if (!lb) { DE.ui.toast("找不到这枚徽章。", "err"); return; }
+    var ents = J.entries || [];
+    var en = ents[0] ? DE.journal.findEntry(J, ents[0].id) : DE.journal.addEntry(J, { title: "未命名手账 · " + lb.name });
+    if (!en) en = DE.journal.addEntry(J, { title: "未命名手账 · " + lb.name });
+    var leaf = DE.journal.leavesOf(en)[0] || DE.journal.addLeaf(en, {});
+    var n = DE.journal.itemsOfLeaf(leaf).length;
+    DE.journal.addItemToLeaf(en, leaf.id, {
+      type: "sticker", stickerId: libId,
+      x: 30 + (n % 4) * 40, y: 30 + Math.floor(n / 4) * 40, w: 150, z: n + 1
+    });
+    persist().then(function () {
+      editId = en.id; leafIdx = 0; tab = "log"; sbSelId = null; DRAWING = false;
+      render();
+      DE.ui.toast("已把〈" + lb.name + "〉贴到纸上，可以拖动 / 旋转。", "ok");
+    });
+  }
+
+  function paneWall() {
+    var lib = (J.library || []);
+    var badges = lib.filter(function (x) { return (x.kind || "sticker") === "badge"; });
+    var others = lib.filter(function (x) { return (x.kind || "sticker") !== "badge"; });
+
+    var head = '<div class="card"><h2>🏅 徽章墙' +
+      '<span class="hint" style="font-weight:400;margin-left:8px">冒险中获得 / 任务奖励的徽章</span>' +
+      '<span class="badge teal" style="margin-left:auto">' + badges.length + ' 枚</span></h2>' +
+      (badges.length ? '<div class="hint" style="margin:-6px 0 10px">' +
+        '点徽章即可贴到手账纸上（之后可自由拖动 / 旋转）。鼠标停在徽章上能看名字。</div>' : "") +
+      (badges.length
+        ? '<div class="badgewall">' + badges.map(function (b) {
+            return '<div class="b" data-stick="' + b.id + '" title="' +
+                DE.ui.esc(b.name + (b.group ? "（" + b.group + "）" : "") + " — 点一下贴到手账纸上") + '">' +
+              '<img src="' + b.dataUrl + '" alt="' + DE.ui.esc(b.name) + '">' +
+              '<div class="n">' + DE.ui.esc(b.name) + '</div>' +
+            '</div>';
+          }).join("") + '</div>'
+        : '<div class="empty"><span class="big">🏅</span>还没有徽章。<br>' +
+          '<span class="hint">去「📤 上传贴纸」把徽章传上来（类型记得选 <b>徽章</b>），就会挂到墙上。</span></div>') +
+      '</div>';
+
+    if (others.length) {
+      head += '<div class="hint" style="margin:-6px 0 14px">另有 ' + others.length +
+        ' 张奖励 / 装饰贴纸，在下面的贴纸库里。</div>';
+    }
+    return head + libCard(true);
+  }
+
+  function libCard(isFullPage) {
+    var lib = (J.library || []).filter(function (x) {
+      if (libFilter !== "all" && (x.kind || "sticker") !== libFilter) return false;
+      if (libQ && (x.name + " " + (x.group || "")).toLowerCase().indexOf(libQ) < 0) return false;
+      return true;
+    });
+    var total = (J.library || []).length;
+    var chips = ['<span class="chip' + (libFilter === "all" ? " active" : "") + '" data-lk="all">全部 ' + total + "</span>"];
+    Object.keys(LIB_KINDS).forEach(function (k) {
+      var n = (J.library || []).filter(function (x) { return (x.kind || "sticker") === k; }).length;
+      if (!n) return;
+      chips.push('<span class="chip' + (libFilter === k ? " active" : "") + '" data-lk="' + k + '">' +
+        LIB_KINDS[k].icon + " " + LIB_KINDS[k].label + " " + n + "</span>");
+    });
+
+    var grid = lib.length ? '<div class="stickerlib">' + lib.map(function (x) {
+      return '<div class="sk" data-libpick="' + x.id + '" title="' + DE.ui.esc(x.name) +
+        (x.group ? "（" + DE.ui.esc(x.group) + "）" : "") + '">' +
+        '<img src="' + x.dataUrl + '" alt="' + DE.ui.esc(x.name) + '">' +
+        '<div class="n">' + DE.ui.esc(x.name) + "</div></div>";
+    }).join("") + "</div>"
+    : '<div class="hint">' + (total ? "没有符合条件的贴纸。" :
+       "贴纸库还是空的。点右上「＋ 上传贴纸」把徽章、奖励贴纸传上来。") + "</div>";
+
+    return '<div class="card" style="margin-top:16px"><h2>🎨 贴纸库' +
+      '<span class="hint" style="font-weight:400;margin-left:8px">徽章 / 奖励贴纸 / 装饰素材</span>' +
+      '<span style="margin-left:auto"></span>' +
+      '<button class="sm primary" id="btnLibUp">＋ 上传贴纸</button></h2>' +
+      '<div class="filters"><div class="chips">' + chips.join("") + "</div>" +
+      '<input type="text" id="libQ" placeholder="搜索贴纸…" value="' + DE.ui.esc(libQ) + '">' +
+      '<label class="inline hint"><input type="checkbox" id="libClip"> 上传时自动去白底</label>' +
+      '<span class="badge teal" style="margin-left:auto">' + DE.journal.fmtBytes(DE.journal.libBytes(J)) + "</span></div>" +
+      grid +
+      '<input type="file" id="libFile" accept="image/*" multiple style="display:none">' +
+      '<div class="hint" style="margin-top:10px">' +
+      (isFullPage ? "上传后点任意贴纸，即可新建一页手账并贴上它。" : "点贴纸即可贴到当前手账页上。") + "</div></div>";
+  }
+
+  function bindLib() {
+    DE.ui.$$("[data-stick]").forEach(function (b) {
+      b.onclick = function (ev) {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        stickToPaper(b.getAttribute("data-stick"));
+      };
+    });
+    DE.ui.$$("[data-lk]").forEach(function (c) {
+      c.onclick = function () { libFilter = c.getAttribute("data-lk"); render(); };
+    });
+    var q = $("#libQ");
+    if (q) q.oninput = function () { libQ = this.value.toLowerCase(); render(); };
+    var bu = $("#btnLibUp") || $("#btnLibUp2"), bf = $("#libFile");
+    if (bu && bf) {
+      bu.onclick = function () { bf.click(); };
+      bf.onchange = function () {
+        if (this.files && this.files.length) uploadLibrary(Array.prototype.slice.call(this.files));
+      };
+    }
+    DE.ui.$$("[data-libpick]").forEach(function (x) {
+      x.onclick = function () {
+        var id = x.getAttribute("data-libpick");
+        if (editId) {
+          var e = DE.journal.findEntry(J, editId);
+          var n = DE.journal.itemsOf(e).length;
+          DE.journal.addItem(J, editId, {
+            type: "sticker", stickerId: id,
+            x: 26 + (n % 6) * 22, y: 26 + Math.floor(n / 6) * 22,
+            w: 130, z: n + 1
+          });
+          persist().then(render);
+          DE.ui.toast("已贴到纸上。", "ok");
+          render();
+        } else {
+          var lb = DE.journal.findLib(J, id);
+          var en = DE.journal.addEntry(J, { title: "未命名手账 · " + lb.name });
+          DE.journal.addItem(J, en.id, { type: "sticker", stickerId: id, x: 30, y: 30, w: 150, z: 1 });
+          DE.journal.addItem(J, en.id, { type: "text", text: "点击这里写下今天的见闻", x: 30, y: 210, w: 260, size: 24, z: 2 });
+          persist().then(render);
+          editId = en.id; sbSelId = null;
+          DE.ui.toast("已新建手账页并贴上〈" + lb.name + "〉。", "ok");
+          render();
+        }
+      };
+    });
+  }
+
+  function uploadLibrary(files) {
+    var clip = !!($("#libClip") && $("#libClip").checked);
+    var done = 0, failed = [];
+    DE.ui.toast("正在处理 " + files.length + " 张贴纸…", "");
+    files.forEach(function (f) {
+      DE.journal.readImage(f, { maxSide: 720, quality: 0.85, whiteToAlpha: clip })
+        .then(function (r) {
+          DE.journal.addStickerLib(J, {
+            name: f.name.replace(/\.[^.]+$/, ""),
+            dataUrl: r.dataUrl, width: r.width, height: r.height,
+            kind: /徽章|badge/i.test(f.name) ? "badge" : "sticker"
+          });
+          done++;
+          if (done + failed.length === files.length) finish();
+        })
+        .catch(function (e) {
+          failed.push(f.name + "：" + e.message);
+          if (done + failed.length === files.length) finish();
+        });
+    });
+    function finish() {
+      if (failed.length) DE.ui.toast("有 " + failed.length + " 张失败：" + failed.slice(0, 2).join("；"), "err");
+      persist().then(function (ok) {
+        if (!failed.length && ok) DE.ui.toast("已加入贴纸库 " + done + " 张。", "ok");
+        render();
+      });
+    }
+  }
+
+  /* ---------- 拼贴编辑器 ---------- */
+﻿
+  /* ============================================================
+   *  摊开的笔记本：左页写记录，右页拼贴
+   *  ============================================================ */
+  var leafIdx = 0;
+
+  function curLeaf(e) {
+    var ls = DE.journal.leavesOf(e);
+    if (leafIdx >= ls.length) leafIdx = ls.length - 1;
+    if (leafIdx < 0) leafIdx = 0;
+    return ls[leafIdx];
+  }
+
+  function paneScrap() {
+    var e = DE.journal.findEntry(J, editId);
+    if (!e) { editId = null; return paneLogList(); }
+    var leaves = DE.journal.leavesOf(e);
+    var leaf = curLeaf(e);
+    var pp = DE.journal.findPaper(leaf.paper);
+    var items = DE.journal.itemsOfLeaf(leaf);
+    var sel = sbSelId ? DE.journal.findLeafItem(e, leaf.id, sbSelId) : null;
+    var dark = !!pp.dark;
+
+    /* 页签 */
+    var leafbar = '<div class="leafbar">' + leaves.map(function (l, i) {
+      var n = (l.items || []).length;
+      return '<span class="lf' + (i === leafIdx ? " active" : "") + '" data-leaf="' + i + '">' +
+        (l.title ? DE.ui.esc(l.title) : "第 " + (i + 1) + " 张") +
+        '<span class="n">' + (n ? " " + n : "") + "</span></span>";
+    }).join("") +
+    '<button class="sm primary" id="btnAddLeaf">＋ 加一张纸</button>' +
+    '<button class="sm ghost" id="btnDupLeaf">复制这张纸</button>' +
+    '<button class="sm ghost" id="btnDelLeaf">撕掉这张纸</button>' +
+    '<button class="sm ghost" id="btnLeafName">给这张纸起名</button>' +
+    "</div>";
+
+    /* 右页：拼贴 */
+    var units = items.map(function (it) {
+      var inner;
+      if (it.type === "text") {
+        inner = '<span class="mv" data-move="' + it.id + '" title="按住拖动文字">⠿</span>' +
+          '<div class="tx" contenteditable="true" data-txt="' + it.id + '" ' +
+          'style="font-family:' + sbFont(it.font) + ";font-size:" + it.size + "px;color:" + it.color + '">' +
+          DE.ui.esc(it.text || "") + "</div>";
+      } else {
+        var lb = DE.journal.findLib(J, it.stickerId);
+        inner = lb ? '<img src="' + lb.dataUrl + '" alt="">'
+                   : '<div class="hint" style="padding:6px;background:#fae7e4;border-radius:6px">贴纸已删除</div>';
+      }
+      return '<div class="leaf-u' + (sbSelId === it.id ? " sel" : "") + '" data-el="' + it.id + '" ' +
+        'style="left:' + it.x + "px;top:" + it.y + "px;width:" + (it.w || 120) + "px;" +
+        "transform:rotate(" + (it.rot || 0) + "deg);z-index:" + (it.z || 1) + '">' +
+        '<span class="del" data-delu="' + it.id + '" title="删除">×</span>' +
+        (it.paperTape ? '<span class="tape"></span>' : "") + inner +
+        '<span class="rot" data-rot="' + it.id + '" title="按住转动来旋转">↻</span>' +
+        '<span class="rs" data-rs="' + it.id + '"></span></div>';
+    }).join("");
+
+    /* 侧栏：贴纸库 */
+    var libChips = (function () {
+      var cs = ['<span class="chip' + (libFilter === "all" ? " active" : "") + '" data-lk="all">全部</span>'];
+      Object.keys(LIB_KINDS).forEach(function (k) {
+        var n = (J.library || []).filter(function (x) { return (x.kind || "sticker") === k; }).length;
+        if (n) cs.push('<span class="chip' + (libFilter === k ? " active" : "") + '" data-lk="' + k + '">' +
+          LIB_KINDS[k].icon + " " + n + "</span>");
+      });
+      return cs.join("");
+    })();
+    var libGrid = (function () {
+      var lib = (J.library || []).filter(function (x) {
+        return libFilter === "all" || (x.kind || "sticker") === libFilter;
+      });
+      return lib.length ? '<div class="stickerlib">' + lib.map(function (x) {
+        return '<div class="sk" data-libpick="' + x.id + '" title="' + DE.ui.esc(x.name) + '">' +
+          '<img src="' + x.dataUrl + '" alt=""><div class="n">' + DE.ui.esc(x.name) + "</div></div>";
+      }).join("") + "</div>"
+      : '<div class="hint">贴纸库是空的，点右上「＋」上传徽章或奖励贴纸。</div>';
+    })();
+
+    return '<div class="card"><h2>📖 ' + DE.ui.esc(e.title) +
+      '<span style="margin-left:auto"></span>' +
+      '<button class="sm ghost" id="btnBackLog">← 合上放回书架</button></h2>' +
+      leafbar +
+      '<div class="sb-editor">' +
+        "<div>" +
+          '<div class="btnrow" style="margin:0 0 9px">' +
+            '<button class="sm primary" id="btnAddText">＋ 文字</button>' +
+            '<button class="sm" id="btnDraw">✏️ 自由涂鸦</button>' +
+            '<button class="sm ghost" id="btnSbSnap">' + (sbSnap ? "吸附：开" : "吸附：关") + "</button>" +
+            '<button class="sm ghost" id="btnSbTidy">整齐排列</button>' +
+            '<button class="sm ghost" id="btnSbClear">清空这页贴纸</button>' +
+            '<button class="sm gold" id="btnExportScrap">导出这一页 PNG</button>' +
+          "</div>" +
+          '<div class="spread">' +
+            /* 左页 */
+            '<div class="leaf l"><div class="leaf-notes">' +
+              '<h3>✍️ 记录</h3>' +
+              '<div class="row">' +
+                '<label class="fld"><span>标题</span><input type="text" id="sbTitle" value="' + DE.ui.esc(e.title) + '"></label>' +
+                '<label class="fld" style="max-width:110px"><span>天数</span><input type="number" id="sbDay" min="1" value="' + e.day + '"></label>' +
+              "</div>" +
+              '<div class="row">' +
+                '<label class="fld"><span>地貌</span><input type="text" id="sbTerrain" value="' + DE.ui.esc(e.terrain) + '"></label>' +
+                '<label class="fld"><span>天气</span><select id="sbWeather"><option value="">—</option>' +
+                  DE.JOURNAL_WEATHERS.map(function (w) {
+                    return "<option" + (w === e.weather ? " selected" : "") + ">" + DE.ui.esc(w) + "</option>";
+                  }).join("") + "</select></label>" +
+              "</div>" +
+              '<label class="fld"><span>同伴</span><input type="text" id="sbMembers" value="' + DE.ui.esc(e.members) + '"></label>' +
+              '<label class="fld"><span>收获</span><input type="text" id="sbLoot" value="' + DE.ui.esc(e.loot) + '"></label>' +
+              '<label class="fld"><span>正文</span><textarea id="sbBody" style="min-height:220px" ' +
+                'placeholder="今天走了多久、遇到什么、有什么想记下来的…">' + DE.ui.esc(e.note) + "</textarea></label>" +
+              '<button class="primary sm" id="btnSbInfo">保存记录</button>' +
+            "</div></div>" +
+            /* 右页 */
+            '<div class="leaf r" id="sbLeafR" style="' + pp.style + '">' +
+              '<canvas id="sbInk" class="sbink"></canvas>' +
+              '<div class="leafin" id="sbc">' + units +
+              (items.length ? "" : '<div class="leaf-empty"' + (dark ? ' style="color:#a8b2c4"' : "") +
+                '><span style="font-size:34px;opacity:.6">🎨</span><div style="margin-top:8px">' +
+                "这一页还空着<br>点右侧贴纸库的贴纸，或去「🏅 徽章墙」点徽章贴上来</div></div>") +
+            "</div></div>" +
+          "</div>" +
+          '<div id="selCtrl"></div>' +
+        "</div>" +
+        '<div id="inkBar"></div>' +
+        '<div class="sb-side">' +
+          '<div class="card"><h3>🎨 贴纸库<span style="margin-left:auto"></span>' +
+            '<button class="sm primary" id="btnLibUp2">＋</button></h3>' +
+            '<div class="chips" style="margin-bottom:8px">' + libChips + "</div>" + libGrid +
+            '<input type="file" id="libFile" accept="image/*" multiple style="display:none">' +
+          "</div>" +
+          '<div class="card"><h3>📄 纸张</h3><div class="papers">' +
+            DE.journal.PAPERS.map(function (x) {
+              return '<div class="pp' + (x.id === leaf.paper ? " on" : "") + '" data-paper="' + x.id +
+                '" style="' + x.style + '" title="' + DE.ui.esc(x.name) + '"><span class="lbl">' +
+                DE.ui.esc(x.name) + "</span></div>";
+            }).join("") + "</div></div>" +
+          '<div class="card"><h3>📕 封面</h3><div class="covers">' +
+            DE.journal.COVERS.map(function (cv) {
+              return '<div class="cv' + (cv.id === e.cover ? " on" : "") + '" data-cover="' + cv.id +
+                '" style="background:' + cv.css + '" title="' + DE.ui.esc(cv.name) + '"></div>';
+            }).join("") + "</div></div>" +
+          (sel && sel.type === "text" ?
+          '<div class="card"><h3>✍️ 文字样式</h3>' +
+            '<div class="fontpick">' + SB_FONTS.map(function (ft) {
+              return '<span class="fp' + ((sel.font || "hand") === ft.id ? " on" : "") + '" data-font="' + ft.id +
+                '" style="font-family:' + ft.css + '">' + ft.name + "</span>";
+            }).join("") + "</div>" +
+            '<label class="fld" style="margin-top:9px"><span>颜色</span>' +
+              '<input type="color" id="txtColor" value="' + sel.color + '" style="height:36px;padding:2px"></label>' +
+          "</div>" : "") +
+          '<div class="card"><h3>📋 这本笔记本</h3>' +
+            '<div class="hint">共 <b>' + leaves.length + "</b> 张纸，合计 <b>" +
+              DE.journal.itemCount(e) + "</b> 个贴纸/文字。</div></div>" +
+        "</div>" +
+      "</div></div>";
+  }
+﻿
+  /* ============================================================
+   *  笔记本交互
+   *  ============================================================ */
+  function bindLog() {
+    /* 书架 */
+    var cs = $("#btnCreateScrap");
+    if (cs) cs.onclick = function () {
+      var t = ($("#eTitle").value || "").trim() || "未命名旅程";
+      var body = ($("#eBody").value || "").trim();
+      var e = DE.journal.addEntry(J, {
+        title: t,
+        day: parseInt($("#eDay").value || "1", 10) || 1,
+        terrain: $("#eTerrain").value,
+        weather: $("#eWeather").value,
+        members: $("#eMembers").value,
+        loot: $("#eLoot").value,
+        note: body,
+        cover: J.lastCover || DE.journal.DEFAULT_COVER,
+        paper: J.paper,
+        pages: []
+      });
+      /* 第一张纸：标题写在右上，正文用右手写体排开，方便直接开始拼贴 */
+      var leaf = DE.journal.leavesOf(e)[0];
+      DE.journal.addItemToLeaf(e, leaf.id, {
+        type: "text", text: t, x: 26, y: 26, w: 300, size: 30, z: 1, color: "#2d5c55"
+      });
+      if (body) {
+        DE.journal.addItemToLeaf(e, leaf.id, {
+          type: "text", text: body, x: 26, y: 82, w: 320, size: 19, z: 2
+        });
+      }
+      editId = e.id; leafIdx = 0; sbSelId = null;
+      persist().then(function (ok) {
+        if (!ok) return;
+        DE.ui.toast("手账本已建立，开始拼贴吧。", "ok");
+        render();
+      });
+    };
+    DE.ui.$$("[data-open], [data-open2]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        editId = b.getAttribute("data-open") || b.getAttribute("data-open2");
+        leafIdx = 0; sbSelId = null;
+        render();
+      };
+    });
+    DE.ui.$$("[data-expscrap]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        exportScrap(DE.journal.findEntry(J, b.getAttribute("data-expscrap")));
+      };
+    });
+    DE.ui.$$("[data-delen]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        var e = DE.journal.findEntry(J, b.getAttribute("data-delen"));
+        DE.ui.confirm({ title: "删除手账本", body: "确定删除〈" + e.title + "〉吗？里面的贴纸一并删除。", okText: "删除" })
+          .then(function (ok) {
+            if (!ok) return;
+            DE.journal.removeEntry(J, e.id);
+            if (editId === e.id) editId = null;
+            persist().then(render);
+          });
+      };
+    });
+    bindLib();
+    if (editId) bindScrap();
+  }
+
+  /* ============================================================
+   *  自由涂鸦 · 悬浮工具栏
+   *  ============================================================ */
+  function updateInkBar(theLeaf) {
+    try {
+    var leaf = theLeaf || {};   /* leaf 来自 bindScrap，必须传进来 */
+    var bar = $("#inkBar");
+    if (!bar) return;
+    if (!DRAWING) { bar.innerHTML = ""; bar.classList.remove("on"); return; }
+    bar.classList.add("on");
+    bar.innerHTML =
+      '<div class="ib-grip" title="拖动可移动工具栏">⠿</div>' +
+      '<div class="ib-tools">' + INK_TOOLS.map(function (t) {
+        return '<button class="ib-t' + (inkTool === t.id ? " on" : "") + '" data-itool="' + t.id +
+          '" title="' + DE.ui.esc(t.name) + '">' + t.icon + "</button>";
+      }).join("") + "</div>" +
+      '<div class="ib-sep"></div>' +
+      '<div class="ib-sizes">' + [2,3,5,9,16].map(function (sz) {
+        return '<button class="ib-s' + (inkSize === sz ? " on" : "") + '" data-inkw="' + sz +
+          '" title="' + sz + 'px"><i style="width:' + Math.min(16, sz + 2) + "px;height:" +
+          Math.min(16, sz + 2) + 'px"></i></button>';
+      }).join("") + "</div>" +
+      '<div class="ib-sep"></div>' +
+      '<div class="ib-colors">' + INK_COLORS.map(function (col) {
+        return '<button class="ib-c' + (inkColor === col ? " on" : "") + '" data-ink="' + col +
+          '" title="' + col + '" style="background:' + col + '"></button>';
+      }).join("") + "</div>" +
+      '<div class="ib-sep"></div>' +
+      '<label class="ib-custom" title="自定义颜色">' +
+        '<input type="color" id="inkCustom" value="' + inkColor + '"></label>' +
+      '<div class="ib-sep"></div>' +
+      '<div class="ib-acts">' +
+        '<button class="ib-a" data-ib="undo" title="撤销一笔">↶</button>' +
+        '<button class="ib-a" data-ib="clear" title="清空涂鸦">🗑</button>' +
+        '<button class="ib-a ib-close" data-ib="close" title="退出画笔">✕</button>' +
+      "</div>" +
+      '<div class="ib-hint">' + DE.ui.esc((INK_TOOLS.filter(function (t) { return t.id === inkTool; })[0] || {}).name || "") +
+        "　共 " + DE.journal.strokeCount(leaf) + " 笔</div>";
+
+    /* 位置：默认贴在手账下方居中，拖过就记住 */
+    bar.style.left = ""; bar.style.top = ""; bar.style.right = ""; bar.style.bottom = "";
+    if (inkBarPos) {
+      bar.style.left = Math.max(4, Math.min(window.innerWidth - 80, inkBarPos.x)) + "px";
+      bar.style.top = Math.max(4, Math.min(window.innerHeight - 60, inkBarPos.y)) + "px";
+      bar.classList.add("floating");
+    } else {
+      bar.classList.remove("floating");
+    }
+    } catch (e) {
+      /* 工具栏只是辅助 UI，画不出来也不该让整页挂掉 */
+      try { if (window.console && console.warn) console.warn("工具栏渲染失败：", e); } catch (e2) {}
+    }
+  }
+
+  function bindInkBar(leaf) {
+    var bar = $("#inkBar");
+    if (!bar || !DRAWING) return;
+
+    /* 关键：只在容器上绑一次，用事件委托处理所有按钮。
+     * 之前是给每个按钮单独 onclick —— 而 updateInkBar() 会整个重写 innerHTML，
+     * 新旧按钮一换，监听就全丢了，表现就是「选完一个工具再换就卡住」。 */
+    if (bar.getAttribute("data-bound") === "1") return;
+    bar.setAttribute("data-bound", "1");
+
+    bar.addEventListener("click", function (ev) {
+      var t = ev.target;
+      /* 从被点的元素往上找，直到找到带 data-* 的那个按钮 */
+      while (t && t !== bar && !(t.getAttribute &&
+             (t.getAttribute("data-itool") || t.getAttribute("data-inkw") ||
+              t.getAttribute("data-ink") || t.getAttribute("data-ib")))) {
+        t = t.parentNode;
+      }
+      if (!t || t === bar) return;
+      var v;
+
+      if ((v = t.getAttribute("data-itool"))) {
+        inkTool = v; updateInkBar(leaf); renderInkCursor(); return;
+      }
+      if ((v = t.getAttribute("data-inkw"))) {
+        inkSize = parseInt(v, 10); updateInkBar(leaf); return;
+      }
+      if ((v = t.getAttribute("data-ink"))) {
+        inkColor = v; updateInkBar(leaf); return;
+      }
+      v = t.getAttribute("data-ib");
+      if (v === "close") { DRAWING = false; render(); return; }
+      if (v === "undo") {
+        if (!DE.journal.undoStroke(leaf)) { DE.ui.toast("这一页还没有涂鸦。", ""); return; }
+        persist().then(function () { DE.ui.toast("撤销了一笔。", "ok"); updateInkBar(leaf); window.__paintInk && window.__paintInk(); });
+        return;
+      }
+      if (v === "clear") {
+        var n = DE.journal.strokeCount(leaf);
+        if (!n) { DE.ui.toast("这一页还没有涂鸦。", ""); return; }
+        DE.ui.confirm({ title: "清空涂鸦",
+          body: "这一页的 " + n + " 笔涂鸦会被清除（贴纸和文字不受影响）。", okText: "清空" })
+          .then(function (ok) {
+            if (!ok) return;
+            DE.journal.clearStrokes(leaf);
+            persist().then(function () { DE.ui.toast("已清空涂鸦。", "ok"); updateInkBar(leaf); window.__paintInk && window.__paintInk(); });
+          });
+        return;
+      }
+    });
+
+    /* 自定义颜色：input 事件也委托 */
+    bar.addEventListener("input", function (ev) {
+      if (ev.target && ev.target.id === "inkCustom") {
+        inkColor = ev.target.value;
+        updateInkBar(leaf);
+      }
+    });
+
+    /* 拖工具栏换位置 */
+    bar.addEventListener("mousedown", function (ev) {
+      var t = ev.target;
+      while (t && t !== bar && !(t.classList && t.classList.contains("ib-grip"))) t = t.parentNode;
+      if (!t || t === bar) return;
+      ev.preventDefault();
+      var r = bar.getBoundingClientRect();
+      bar.classList.add("floating");
+      bar.style.left = r.left + "px"; bar.style.top = r.top + "px";
+      inkBarPos = { x: r.left, y: r.top };
+      var off = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+      function mv(e2) {
+        inkBarPos = {
+          x: Math.max(4, Math.min(window.innerWidth - 80, e2.clientX - off.x)),
+          y: Math.max(4, Math.min(window.innerHeight - 60, e2.clientY - off.y))
+        };
+        bar.style.left = inkBarPos.x + "px";
+        bar.style.top = inkBarPos.y + "px";
+      }
+      function up() {
+        document.removeEventListener("mousemove", mv);
+        document.removeEventListener("mouseup", up);
+      }
+      document.addEventListener("mousemove", mv);
+      document.addEventListener("mouseup", up);
+    });
+  }
+
+  /* 画笔模式下改光标，让用户知道现在是哪个工具 */
+  function renderInkCursor() {
+    var lr = $("#sbLeafR");
+    if (!lr) return;
+    var cur = "crosshair";
+    if (inkTool === "eraser") cur = "cell";
+    else if (inkTool === "pen" || inkTool === "marker") cur = "crosshair";
+    lr.style.cursor = DRAWING ? cur : "";
+  }
+
+  function bindScrap() {
+    var e = DE.journal.findEntry(J, editId);
+    var leaf = curLeaf(e);
+    var cv = $("#sbc");
+    if (!cv) return;
+
+    /* 合上 */
+    var bb = $("#btnBackLog");
+    if (bb) bb.onclick = function () { editId = null; sbSelId = null; render(); };
+
+    /* 翻纸 */
+    DE.ui.$$("[data-leaf]").forEach(function (x) {
+      x.onclick = function () { leafIdx = parseInt(x.getAttribute("data-leaf"), 10); sbSelId = null; render(); };
+    });
+    var al = $("#btnAddLeaf");
+    if (al) al.onclick = function () {
+      DE.journal.addLeaf(e, { paper: leaf.paper });
+      leafIdx = DE.journal.leavesOf(e).length - 1; sbSelId = null;
+      persist().then(render);
+    };
+    var dl = $("#btnDupLeaf");
+    if (dl) dl.onclick = function () {
+      var copy = DE.journal.duplicateLeaf(e, leaf.id);
+      if (!copy) return;
+      leafIdx = DE.journal.leavesOf(e).indexOf(copy); sbSelId = null;
+      persist().then(function () { DE.ui.toast("已复制这张纸。", "ok"); render(); });
+    };
+    var xl = $("#btnDelLeaf");
+    if (xl) xl.onclick = function () {
+      DE.ui.confirm({ title: "撕掉这张纸", body: "这张纸上的贴纸与文字会一起删除。", okText: "撕掉" })
+        .then(function (ok) {
+          if (!ok) return;
+          var r = DE.journal.removeLeaf(e, leaf.id);
+          if (!r.ok) { DE.ui.toast(r.msg, "err"); return; }
+          leafIdx = Math.max(0, leafIdx - 1); sbSelId = null;
+          persist().then(render);
+        });
+    };
+    var ln = $("#btnLeafName");
+    if (ln) ln.onclick = function () {
+      var v = prompt("给这张纸起个名字（留空则显示「第 N 张」）", leaf.title || "");
+      if (v === null) return;
+      leaf.title = v;
+      persist().then(render);
+    };
+
+    /* 纸张 / 封面 */
+    DE.ui.$$("[data-paper]").forEach(function (x) {
+      x.onclick = function () { leaf.paper = x.getAttribute("data-paper"); persist().then(render); };
+    });
+    DE.ui.$$("[data-cover]").forEach(function (x) {
+      x.onclick = function () {
+        e.cover = x.getAttribute("data-cover");
+        J.lastCover = e.cover;
+        persist().then(render);
+      };
+    });
+
+    /* 图标库：点贴纸 -> 贴到当前这张纸 */
+    DE.ui.$$("[data-libpick]").forEach(function (x) {
+      x.onclick = function () {
+        var id = x.getAttribute("data-libpick");
+        var n = DE.journal.itemsOfLeaf(leaf).length;
+        var it = DE.journal.addItemToLeaf(e, leaf.id, {
+          type: "sticker", stickerId: id,
+          x: 30 + (n % 5) * 24, y: 30 + Math.floor(n / 5) * 24,
+          w: 120, z: n + 1
+        });
+        sbSelId = it ? it.id : null;
+        persist().then(render);
+      };
+    });
+
+    /* 加文字 */
+    var at = $("#btnAddText");
+    if (at) at.onclick = function () {
+      var n = DE.journal.itemsOfLeaf(leaf).length;
+      var it = DE.journal.addItemToLeaf(e, leaf.id, {
+        type: "text", text: "写点什么…",
+        x: 30 + (n % 4) * 26, y: 150 + (n % 5) * 32,
+        w: 250, size: 21, z: n + 1
+      });
+      sbSelId = it ? it.id : null;
+      persist().then(render);
+    };
+
+    var sn = $("#btnSbSnap");
+    if (sn) sn.onclick = function () { sbSnap = !sbSnap; render(); };
+
+    var td = $("#btnSbTidy");
+    if (td) td.onclick = function () {
+      var items = DE.journal.itemsOfLeaf(leaf);
+      var per = Math.max(1, Math.ceil(Math.sqrt(items.length)));
+      items.forEach(function (it, i) {
+        it.rot = 0;
+        if (it.type === "text") { it.x = 26; it.y = 40 + i * 72; }
+        else { it.x = 34 + (i % per) * 140; it.y = 70 + Math.floor(i / per) * 140; }
+        it.z = i + 1;
+      });
+      persist().then(function () {
+        DE.ui.toast("已整齐排列 " + items.length + " 个元素。", "ok");
+        render();
+      });
+    };
+    var cl = $("#btnSbClear");
+    if (cl) cl.onclick = function () {
+      DE.ui.confirm({ title: "清空这页贴纸", body: "只清掉这张纸上的贴纸与文字（贴纸库与左页记录不受影响）。", okText: "清空" })
+        .then(function (ok) {
+          if (!ok) return;
+          leaf.items = []; sbSelId = null;
+          persist().then(render);
+        });
+    };
+    var ex = $("#btnExportScrap");
+    if (ex) ex.onclick = function () { exportScrap(e); };
+
+    /* 左页记录 */
+    var si = $("#btnSbInfo");
+    if (si) si.onclick = function () {
+      e.title = ($("#sbTitle").value || "").trim() || "未命名旅程";
+      e.day = parseInt($("#sbDay").value || "1", 10) || 1;
+      e.terrain = $("#sbTerrain").value;
+      e.weather = $("#sbWeather").value;
+      e.members = $("#sbMembers").value;
+      e.loot = $("#sbLoot").value;
+      e.note = $("#sbBody").value;
+      persist().then(function () { DE.ui.toast("记录已保存。", "ok"); render(); });
+    };
+
+    /* 文字样式 */
+    DE.ui.$$("[data-font]").forEach(function (x) {
+      x.onclick = function () {
+        var it = DE.journal.findLeafItem(e, leaf.id, sbSelId);
+        if (!it) return;
+        it.font = x.getAttribute("data-font");
+        persist().then(render);
+      };
+    });
+    var tc = $("#txtColor");
+    if (tc) tc.onchange = function () {
+      var it = DE.journal.findLeafItem(e, leaf.id, sbSelId);
+      if (!it) return;
+      it.color = tc.value;
+      persist().then(render);
+    };
+
+    /* 选中元素的快捷操作（浮在纸下方） */
+    var sel = sbSelId ? DE.journal.findLeafItem(e, leaf.id, sbSelId) : null;
+    var ctrl = $("#selCtrl");
+    if (ctrl) {
+      ctrl.innerHTML = sel
+        ? '<div class="alert teal" style="margin-top:11px"><span class="ico">🎛️</span><div>' +
+          "<b>已选中：" + (sel.type === "text" ? "文字" : "贴纸") + "</b>" +
+          '　<span class="badge">' + Math.round(sel.rot || 0) + "°</span>" +
+          '<div class="hint" style="margin-top:4px">拖动元素左上角的 <b>↻</b> 可以自由旋转' +
+          '（按住 <b>Shift</b> 吸附到 15° 整数倍）。</div>' +
+          '<div class="btnrow">' +
+            '<button class="sm" data-sz="1.15">放大</button>' +
+            '<button class="sm" data-sz="0.87">缩小</button>' +
+            '<button class="sm" data-rot2="8">旋转 +8°</button>' +
+            '<button class="sm" data-rot2="-8">旋转 −8°</button>' +
+            '<button class="sm ghost" data-rot0="1">角度归零</button>' +
+            '<button class="sm" data-front="1">移到最前</button>' +
+            '<button class="sm" data-back="1">移到最后</button>' +
+            (sel.type === "sticker" ? '<button class="sm ghost" data-tape="1">' +
+              (sel.paperTape ? "去掉胶带" : "贴上胶带") + "</button>" : "") +
+            (sel.type === "text" ? '<button class="sm ghost" data-bigger="1">字号 +2</button>' +
+              '<button class="sm ghost" data-smaller="1">字号 −2</button>' : "") +
+            '<button class="sm danger" data-delel="1">删除元素</button>' +
+          "</div></div></div>"
+        : '<div class="hint" style="margin-top:11px">拖动右页上的贴纸或文字即可摆放；' +
+          "选中后可缩放、旋转、加胶带装饰。</div>";
+
+      function act(fn) {
+        var it = DE.journal.findLeafItem(e, leaf.id, sbSelId);
+        if (!it) return;
+        fn(it); persist().then(render);
+      }
+      DE.ui.$$("[data-sz]").forEach(function (b) {
+        b.onclick = function () {
+          var f = parseFloat(b.getAttribute("data-sz"));
+          act(function (it) { it.w = Math.round(Math.max(24, Math.min(900, (it.w || 120) * f))); });
+        };
+      });
+      DE.ui.$$("[data-rot2]").forEach(function (b) {
+        b.onclick = function () {
+          var d = parseFloat(b.getAttribute("data-rot2"));
+          act(function (it) { it.rot = ((it.rot || 0) + d + 360) % 360; });
+        };
+      });
+      DE.ui.$$("[data-rot0]").forEach(function (b) {
+        b.onclick = function () { act(function (it) { it.rot = 0; }); };
+      });
+      DE.ui.$$("[data-front]").forEach(function (b) {
+        b.onclick = function () {
+          act(function (it) {
+            var zs = DE.journal.itemsOfLeaf(leaf).map(function (x) { return x.z || 0; });
+            it.z = Math.max.apply(null, zs.concat([0])) + 1;
+          });
+        };
+      });
+      DE.ui.$$("[data-back]").forEach(function (b) { b.onclick = function () { act(function (it) { it.z = 0; }); }; });
+      DE.ui.$$("[data-tape]").forEach(function (b) {
+        b.onclick = function () { act(function (it) { it.paperTape = !it.paperTape; }); };
+      });
+      DE.ui.$$("[data-bigger]").forEach(function (b) {
+        b.onclick = function () { act(function (it) { it.size = Math.min(96, (it.size || 21) + 2); }); };
+      });
+      DE.ui.$$("[data-smaller]").forEach(function (b) {
+        b.onclick = function () { act(function (it) { it.size = Math.max(10, (it.size || 21) - 2); }); };
+      });
+      DE.ui.$$("[data-delel]").forEach(function (b) {
+        b.onclick = function () {
+          DE.journal.removeLeafItem(e, leaf.id, sbSelId);
+          sbSelId = null; persist().then(render);
+        };
+      });
+    }
+
+    /* 元素上的 × 删除 */
+    DE.ui.$$("[data-delu]").forEach(function (b) {
+      b.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        DE.journal.removeLeafItem(e, leaf.id, b.getAttribute("data-delu"));
+        if (sbSelId === b.getAttribute("data-delu")) sbSelId = null;
+        persist().then(render);
+      };
+    });
+
+    /* 文字就地编辑 */
+    DE.ui.$$("[data-txt]").forEach(function (div) {
+      div.addEventListener("input", function () {
+        var it = DE.journal.findLeafItem(e, leaf.id, div.getAttribute("data-txt"));
+        if (it) it.text = div.textContent;
+      });
+      div.addEventListener("blur", function () {
+        var it = DE.journal.findLeafItem(e, leaf.id, div.getAttribute("data-txt"));
+        if (it) { it.text = div.textContent; persist(); }
+      });
+      /* 以前这里 stopPropagation()，导致 mousedown 到不了 .leaf-u 的拖拽处理，
+         文字永远拖不动。现在改成「按下时先让拖拽逻辑接管，只有确实拖动超过阈值
+         才拦截文本选择」—— 这样既能把文字拖走，也能正常点进去改字。 */
+      div.addEventListener("mousedown", function (ev) {
+        var startX = ev.clientX, startY = ev.clientY, moved = false;
+        function mv(e2) {
+          if (Math.abs(e2.clientX - startX) > 3 || Math.abs(e2.clientY - startY) > 3) {
+            moved = true;
+            e2.preventDefault();       // 拖动时别选中文字
+          }
+        }
+        function up() {
+          document.removeEventListener("mousemove", mv);
+          document.removeEventListener("mouseup", up);
+        }
+        document.addEventListener("mousemove", mv);
+        document.addEventListener("mouseup", up);
+        div._dragIntent = moved;
+      });
+      div.addEventListener("touchstart", function (ev) {
+        var t0 = ev.touches && ev.touches[0];
+        if (!t0) return;
+        var sx = t0.clientX, sy = t0.clientY;
+        function mv(e2) {
+          var t = e2.touches && e2.touches[0];
+          if (t && (Math.abs(t.clientX - sx) > 4 || Math.abs(t.clientY - sy) > 4)) e2.preventDefault();
+        }
+        function up() {
+          document.removeEventListener("touchmove", mv);
+          document.removeEventListener("touchend", up);
+        }
+        document.addEventListener("touchmove", mv, { passive: false });
+        document.addEventListener("touchend", up);
+      });
+    });
+
+    /* ---------- 自由涂鸦 ---------- */
+    var ink = $("#sbInk"), leafR = $("#sbLeafR");
+    if (ink && leafR) {
+      leafR.classList.toggle("drawing", DRAWING);
+      /* 画布尺寸跟随纸张，按 devicePixelRatio 提高清晰度 */
+      function sizeInk() {
+        var w = leafR.clientWidth || 420, h = leafR.clientHeight || 560;
+        var dpr = window.devicePixelRatio || 1;
+        ink.width = Math.round(w * dpr); ink.height = Math.round(h * dpr);
+        ink.style.width = w + "px"; ink.style.height = h + "px";
+        var g = ink.getContext("2d");
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        paintInk(w, h);
+      }
+      /* 把 leaf.strokes 画到画布上（坐标是 0~1 相对值）。
+         屏幕、实时预览、导出 PNG 全走这一个函数，保证三处一致。 */
+      function paintInk(w, h, opt) {
+        var g = (opt && opt.ctx) || ink.getContext("2d");
+        var W = w || ink.clientWidth || 420, H = h || ink.clientHeight || 560;
+        var list = (opt && opt.strokes) || leaf.strokes || [];
+        if (!opt || !opt.ctx) g.clearRect(0, 0, W, H);
+        if (opt && opt.scale) { g.save(); g.scale(opt.scale, opt.scale); }
+        list.forEach(function (st) {
+          var pts = st.pts || [];
+          if (pts.length < 2) return;
+          var prevA = g.globalAlpha;
+          g.globalAlpha = st.alpha != null ? st.alpha : 1;
+          g.strokeStyle = st.color || "#3a3128";
+          g.fillStyle = st.color || "#3a3128";
+          g.lineWidth = st.size || 3;
+          g.lineCap = "round"; g.lineJoin = "round";
+          var kind = st.kind || "ink";
+          var A = [pts[0][0] * W, pts[0][1] * H];
+          var B = [pts[pts.length - 1][0] * W, pts[pts.length - 1][1] * H];
+          if (kind === "ink") {
+            g.beginPath();
+            g.moveTo(A[0], A[1]);
+            for (var i = 1; i < pts.length; i++) g.lineTo(pts[i][0] * W, pts[i][1] * H);
+            g.stroke();
+          } else if (kind === "line") {
+            g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+          } else if (kind === "arrow") {
+            g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+            var ang = Math.atan2(B[1] - A[1], B[0] - A[0]);
+            var hl = Math.max(9, (st.size || 3) * 3.2);
+            g.beginPath();
+            g.moveTo(B[0], B[1]);
+            g.lineTo(B[0] - hl * Math.cos(ang - 0.42), B[1] - hl * Math.sin(ang - 0.42));
+            g.moveTo(B[0], B[1]);
+            g.lineTo(B[0] - hl * Math.cos(ang + 0.42), B[1] - hl * Math.sin(ang + 0.42));
+            g.stroke();
+          } else if (kind === "rect") {
+            g.strokeRect(Math.min(A[0], B[0]), Math.min(A[1], B[1]),
+                         Math.abs(B[0] - A[0]), Math.abs(B[1] - A[1]));
+          } else if (kind === "ellipse") {
+            var cx = (A[0] + B[0]) / 2, cy = (A[1] + B[1]) / 2;
+            g.beginPath();
+            g.ellipse(cx, cy, Math.abs(B[0] - A[0]) / 2, Math.abs(B[1] - A[1]) / 2,
+                      0, 0, Math.PI * 2);
+            g.stroke();
+          }
+          g.globalAlpha = prevA;
+        });
+        if (opt && opt.scale) g.restore();
+      }
+      window.__paintInk = paintInk;
+      paintInk();
+
+      var cur = null;          // 正在画的一笔
+      var erasing = false;
+      function inkPt(ev) {
+        var r = ink.getBoundingClientRect();
+        var t = ev.touches ? ev.touches[0] : ev;
+        return [
+          Math.max(0, Math.min(1, (t.clientX - r.left) / (r.width || 1))),
+          Math.max(0, Math.min(1, (t.clientY - r.top) / (r.height || 1)))
+        ];
+      }
+      /* 橡皮：按笔宽换算成相对半径，擦到就切/删 */
+      function inkErase(p) {
+        var r = Math.max(0.012, (inkSize * 2.4) / (ink.clientWidth || 420));
+        var n = DE.journal.eraseAt(leaf, p[0], p[1], r);
+        if (n) { erasing = true; paintInk(); }
+      }
+      function isShape() {
+        return inkTool === "line" || inkTool === "rect" || inkTool === "ellipse" || inkTool === "arrow";
+      }
+      function inkDown(ev) {
+        if (!DRAWING) return;
+        ev.preventDefault();
+        var p = inkPt(ev);
+        if (inkTool === "eraser") { erasing = false; inkErase(p); return; }
+        cur = {
+          kind: inkTool === "pen" ? "ink" : inkTool,
+          color: inkColor,
+          size: inkTool === "marker" ? Math.max(10, inkSize * 3) : inkSize,
+          alpha: inkTool === "marker" ? 0.32 : 1,
+          pts: isShape() ? [p, p] : [p]
+        };
+      }
+      function inkMove(ev) {
+        if (inkTool === "eraser" && DRAWING && (ev.buttons === 1 || ev.touches)) {
+          ev.preventDefault(); inkErase(inkPt(ev)); return;
+        }
+        if (!cur) return;
+        ev.preventDefault();
+        var p = inkPt(ev);
+        if (isShape()) {
+          cur.pts[1] = p;
+          /* 实时预览：已落笔画 + 当前这一笔（paintInk 内部会先 clear） */
+          paintInk(0, 0, { strokes: (leaf.strokes || []).concat([cur]) });
+          return;
+        }
+        var last = cur.pts[cur.pts.length - 1];
+        if (Math.abs(p[0] - last[0]) < 0.004 && Math.abs(p[1] - last[1]) < 0.004) return;
+        cur.pts.push(p);
+        paintInk();
+        var g = ink.getContext("2d");
+        var W = ink.clientWidth, H = ink.clientHeight;
+        g.globalAlpha = cur.alpha;
+        g.strokeStyle = cur.color; g.lineWidth = cur.size;
+        g.lineCap = "round"; g.lineJoin = "round";
+        g.beginPath();
+        g.moveTo(last[0] * W, last[1] * H);
+        g.lineTo(p[0] * W, p[1] * H);
+        g.stroke();
+        g.globalAlpha = 1;
+      }
+      function inkUp() {
+        if (inkTool === "eraser") {
+          if (erasing) { erasing = false; persist().then(function () { paintInk(); }); }
+          return;
+        }
+        if (!cur) return;
+        var okLen = isShape()
+          ? (Math.abs(cur.pts[1][0] - cur.pts[0][0]) > 0.008 ||
+             Math.abs(cur.pts[1][1] - cur.pts[0][1]) > 0.008)
+          : cur.pts.length >= 2;
+        if (okLen) DE.journal.addStroke(leaf, cur);
+        cur = null;
+        persist().then(function () { paintInk(); updateInkBar(leaf); });
+      }
+      ink.addEventListener("mousedown", inkDown);
+      ink.addEventListener("mousemove", inkMove);
+      document.addEventListener("mouseup", inkUp);
+      ink.addEventListener("touchstart", inkDown, { passive: false });
+      ink.addEventListener("touchmove", inkMove, { passive: false });
+      ink.addEventListener("touchend", inkUp);
+      window.addEventListener("resize", sizeInk);
+      sizeInk();
+    }
+    updateInkBar(leaf);
+    bindInkBar(leaf);
+    renderInkCursor();
+    var bd = $("#btnDraw");
+    if (bd) bd.onclick = function () {
+      DRAWING = !DRAWING;
+      if (DRAWING) sbSelId = null;
+      render();
+      DE.ui.toast(DRAWING ? "画笔已打开：用下方的悬浮工具栏选工具，直接在纸上画。" :
+        "已退出画笔，可以拖拽贴纸了。", "ok");
+    };
+    /* ---------- 拖动 ---------- */
+    var drag = null;
+    DE.ui.$$("[data-el]").forEach(function (el) {
+      el.addEventListener("mousedown", startDrag);
+      el.addEventListener("touchstart", startDrag, { passive: false });
+    });
+    function pt(ev) {
+      var r = cv.getBoundingClientRect();
+      var t = ev.touches ? ev.touches[0] : ev;
+      return { x: t.clientX - r.left + cv.scrollLeft, y: t.clientY - r.top + cv.scrollTop };
+    }
+    function clearGuides() {
+      DE.ui.$$(".lg", cv).forEach(function (g) { if (g.parentNode) g.parentNode.removeChild(g); });
+    }
+    function drawGuides(list) {
+      clearGuides();
+      list.forEach(function (g) {
+        var d = document.createElement("div");
+        d.className = "lg " + g.axis;
+        if (g.axis === "v") d.style.left = g.pos + "px"; else d.style.top = g.pos + "px";
+        cv.appendChild(d);
+      });
+    }
+    function startDrag(ev) {
+      var el = ev.currentTarget;
+      /* 注意：这里只挡「删除按钮」。旋转手柄必须在下面自己的分支里处理，
+         所以绝不能把它也 return 掉 —— 那会让旋转逻辑变成永远跑不到的死代码。 */
+      if (ev.target && ev.target.getAttribute && ev.target.getAttribute("data-delu")) return;
+      var it = DE.journal.findLeafItem(e, leaf.id, el.getAttribute("data-el"));
+      if (!it) return;
+
+      /* ---- 旋转手柄：按住转圈就改角度 ---- */
+      if (ev.target && ev.target.getAttribute && ev.target.getAttribute("data-rot")) {
+        ev.preventDefault();
+        sbSelId = it.id;
+        el.classList.add("sel", "rotating");
+        var rr = cv.getBoundingClientRect();
+        var cr = el.getBoundingClientRect();
+        /* 元素中心（用屏幕坐标，旋转过程中元素自己会动，所以中心在按下时定住） */
+        var cx = cr.left + cr.width / 2;
+        var cy = cr.top + cr.height / 2;
+        var startDeg = (it.rot || 0) * Math.PI / 180;
+        var a0 = Math.atan2(ev.clientY - cy, ev.clientX - cx);
+        var base = startDeg - a0;
+        function rotMove(e2) {
+          e2.preventDefault();
+          var a = Math.atan2(e2.clientY - cy, e2.clientX - cx);
+          var deg = (base + a) * 180 / Math.PI;
+          /* 按住 Shift 吸附到 15° 整数倍 */
+          if (e2.shiftKey) deg = Math.round(deg / 15) * 15;
+          deg = ((deg % 360) + 360) % 360;
+          it.rot = Math.round(deg);
+          el.style.transform = "rotate(" + it.rot + "deg)";
+          var badge = el.querySelector(".rotbadge");
+          if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "rotbadge";
+            el.appendChild(badge);
+          }
+          badge.textContent = it.rot + "°";
+        }
+        function rotUp() {
+          document.removeEventListener("mousemove", rotMove);
+          document.removeEventListener("mouseup", rotUp);
+          document.removeEventListener("touchmove", rotMove);
+          document.removeEventListener("touchend", rotUp);
+          el.classList.remove("rotating");
+          var b2 = el.querySelector(".rotbadge");
+          if (b2 && b2.parentNode) b2.parentNode.removeChild(b2);
+          persist().then(render);
+        }
+        document.addEventListener("mousemove", rotMove);
+        document.addEventListener("mouseup", rotUp);
+        document.addEventListener("touchmove", rotMove, { passive: false });
+        document.addEventListener("touchend", rotUp);
+        return;
+      }
+
+      /* 选中 / 手柄：立刻拖动，并拦住文本选择 */
+      var onHandle = !!(ev.target && ev.target.getAttribute &&
+        (ev.target.getAttribute("data-rs") || ev.target.getAttribute("data-move")));
+      var isText = it.type === "text";
+      if (!isText || onHandle) ev.preventDefault();
+      var p = pt(ev);
+      drag = {
+        it: it, el: el, dx: p.x - it.x, dy: p.y - it.y,
+        w: el.offsetWidth || it.w, h: el.offsetHeight || 60,
+        moved: false, isText: isText
+      };
+      sbSelId = it.id;
+      el.classList.add("drag");
+      DE.ui.$$("[data-el]").forEach(function (o) { if (o !== el) o.classList.remove("sel"); });
+      el.classList.add("sel");
+      document.addEventListener("mousemove", onDrag);
+      document.addEventListener("touchmove", onDrag, { passive: false });
+      document.addEventListener("mouseup", endDrag);
+      document.addEventListener("touchend", endDrag);
+    }
+    function onDrag(ev) {
+      if (!drag) return;
+      var p = pt(ev);
+      /* 文字块要能「点进去改字」：先看位移够不够大，够大才算拖动。
+         否则轻轻一点就把文字挪走了。 */
+      if (drag.isText && !drag.moved) {
+        var ddx = Math.abs(p.x - (drag.it.x + drag.dx));
+        var ddy = Math.abs(p.y - (drag.it.y + drag.dy));
+        if (ddx < 4 && ddy < 4) return;
+      }
+      ev.preventDefault();
+      var nx = p.x - drag.dx, ny = p.y - drag.dy;
+      drag.moved = true;
+      if (sbSnap) {
+        var others = DE.journal.itemsOfLeaf(leaf)
+          .filter(function (o) { return o.id !== drag.it.id; })
+          .map(function (o) {
+            var el2 = cv.querySelector('[data-el="' + o.id + '"]');
+            return { x: o.x, y: o.y, w: (el2 && el2.offsetWidth) || o.w || 120,
+                     h: (el2 && el2.offsetHeight) || 60 };
+          });
+        var r = DE.journal.snap({ x: nx, y: ny, w: drag.w, h: drag.h }, others, 9,
+                                cv.clientWidth || 460, cv.clientHeight || 560);
+        nx = r.x; ny = r.y;
+        drawGuides(r.guides);
+      }
+      drag.nx = nx; drag.ny = ny;
+      drag.el.style.left = nx + "px";
+      drag.el.style.top = ny + "px";
+    }
+    function endDrag() {
+      if (!drag) return;
+      drag.el.classList.remove("drag");
+      clearGuides();
+      if (drag.moved) {
+        drag.it.x = Math.round(drag.nx != null ? drag.nx : drag.it.x);
+        drag.it.y = Math.round(drag.ny != null ? drag.ny : drag.it.y);
+        persist().then(render);
+      } else {
+        render();
+      }
+      drag = null;
+      document.removeEventListener("mousemove", onDrag);
+      document.removeEventListener("touchmove", onDrag);
+      document.removeEventListener("mouseup", endDrag);
+      document.removeEventListener("touchend", endDrag);
+    }
+
+    /* 右下角缩放 */
+    DE.ui.$$("[data-rs]").forEach(function (h) {
+      h.addEventListener("mousedown", function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        var it = DE.journal.findLeafItem(e, leaf.id, h.getAttribute("data-rs"));
+        if (!it) return;
+        sbSelId = it.id;
+        var sx = ev.clientX, sw = it.w || 120;
+        function mv(e2) {
+          it.w = Math.round(Math.max(24, Math.min(900, sw + (e2.clientX - sx))));
+          var el = cv.querySelector('[data-el="' + it.id + '"]');
+          if (el) el.style.width = it.w + "px";
+        }
+        function up() {
+          document.removeEventListener("mousemove", mv);
+          document.removeEventListener("mouseup", up);
+          persist().then(render);
+        }
+        document.addEventListener("mousemove", mv);
+        document.addEventListener("mouseup", up);
+      });
+    });
+  }
+﻿
+  /* ---------- 导出当前这张纸为图片 ---------- */
+  function exportScrap(e) {
+    var leaf = curLeaf(e);
+    var items = DE.journal.itemsOfLeaf(leaf);
+    if (!items.length && !DE.journal.strokeCount(leaf)) {
+      DE.ui.toast("这张纸还是空的。", "err"); return;
+    }
+    var cv = document.getElementById("sbc");
+    var W = 900, H = (cv && cv.offsetHeight) || 600;
+    var out = document.createElement("canvas");
+    out.width = W; out.height = H;
+    var ctx = out.getContext("2d");
+    var pp = DE.journal.findPaper(leaf.paper);
+    ctx.fillStyle = pp.css || "#fdfaf2";
+    ctx.fillRect(0, 0, W, H);
+    if (pp.id === "grid" || pp.id === "line" || pp.id === "dot") {
+      ctx.strokeStyle = "rgba(120,140,170,.20)";
+      ctx.lineWidth = 1;
+      if (pp.id === "line") {
+        for (var y = 28; y < H; y += 28) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); }
+      } else {
+        var step = pp.id === "grid" ? 22 : 20;
+        for (var x = 0; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); ctx.stroke(); }
+        for (var y2 = 0; y2 < H; y2 += step) { ctx.beginPath(); ctx.moveTo(0, y2 + .5); ctx.lineTo(W, y2 + .5); ctx.stroke(); }
+      }
+    }
+    /* 涂鸦先画在贴纸下面：复用屏幕上那个绘制函数，保证导出一致 */
+    if (window.__paintInk) {
+      window.__paintInk(W, H, { ctx: ctx, strokes: leaf.strokes || [] });
+    }
+
+    var left = items.length;
+    DE.ui.toast("正在合成这一页…", "");
+    items.forEach(function (it) {
+      if (it.type === "text") {
+        var lines = String(it.text || "").split("\n");
+        ctx.save();
+        ctx.translate(it.x + (it.w || 200) / 2, it.y + lines.length * it.size * 0.75);
+        ctx.rotate((it.rot || 0) * Math.PI / 180);
+        ctx.fillStyle = it.color || "#3a3128";
+        ctx.font = it.size + "px " + sbFont(it.font);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        var total = lines.length * it.size * 1.5;
+        lines.forEach(function (ln, i) {
+          ctx.fillText(ln, 0, i * it.size * 1.5 - total / 2 + it.size * 0.75);
+        });
+        ctx.restore();
+        if (--left === 0) done();
+      } else {
+        var lb = DE.journal.findLib(J, it.stickerId);
+        if (!lb) { if (--left === 0) done(); return; }
+        var img = new Image();
+        img.onload = function () {
+          var w = it.w || 120;
+          var h = w * ((lb.height || 1) / (lb.width || 1));
+          ctx.save();
+          ctx.translate(it.x + w / 2, it.y + h / 2);
+          ctx.rotate((it.rot || 0) * Math.PI / 180);
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
+          ctx.restore();
+          if (--left === 0) done();
+        };
+        img.onerror = function () { if (--left === 0) done(); };
+        img.src = lb.dataUrl;
+      }
+    });
+    function done() {
+      var a = document.createElement("a");
+      a.href = out.toDataURL("image/png");
+      a.download = "龙蛋物语手账_" + String(e.title).replace(/[\\/:*?"<>|\s]/g, "") +
+                   "_第" + (leafIdx + 1) + "页.png";
+      a.click();
+      DE.ui.toast("这一页已导出。", "ok");
+    }
+  }
+  function render() {
+    renderTabs();
+    var html = "";
+    if (tab === "upload") html = paneUpload();
+    else if (tab === "collect") html = paneCollect();
+    else if (tab === "wall") html = paneWall();
+    else if (tab === "log") html = paneLog();
+    $("#pane").innerHTML = html;
+
+    if (tab === "upload") bindUpload();
+    if (tab === "collect") bindCollect();
+    if (tab === "log") bindLog();
+    if (tab === "wall") bindLib();
+
+    renderStats(); renderUsage();
+    DE.ui.expiryBanner($("#expiryBanner"));
+  }
+  DE.onTick = function () { renderStats(); renderUsage(); };
+
+  /* 异步初始化：确定存储模式 -> 载入手账 -> 首次渲染 */
+  (function initAsync() {
+    DE.ui.$("#pane").innerHTML = '<div class="card"><h2>\ud83d\udcd4 正在载入手账…</h2>' +
+      '<div class="hint">正在连接 IndexedDB 大容量存储。</div></div>';
+    refreshUsage();
+
+    DE.storage.init().then(function (mode) {
+      if (mode !== "idb") {
+        DE.ui.toast("无法使用 IndexedDB，已降级到 localStorage（约 5MB）。", "err");
+      }
+      return DE.journal.load();
+    }).then(function (loaded) {
+      J = loaded;
+      DE.journal.book = J;
+      render();
+      DE.storage.persisted().then(function (p) { persisted = !!p; renderUsage(); });
+    }).catch(function () {
+      DE.ui.toast("手账载入失败，已新建空白手账。", "err");
+      render();
+    });
+  })();
+
+  /* ---------- 导入 / 导出 / 清空 ---------- */
+  $("#btnExportJ").onclick = function () {
+    if (!(J.stickers || []).length && !(J.entries || []).length) {
+      DE.ui.toast("手账还是空的。", "err"); return;
+    }
+    var blob = new Blob([DE.journal.exportJSON(J)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "龙蛋物语手账_" + (c.name || "未命名") + ".json";
+    a.click();
+    DE.ui.toast("手账已导出（含 " + (J.library || []).length + " 张徽章 / 贴纸、" +
+      (J.entries || []).length + " 篇冒险记录）。", "ok");
+  };
+  $("#btnImportJ").onclick = function () { $("#fileImportJ").click(); };
+  $("#fileImportJ").onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var nj = DE.journal.importJSON(fr.result);
+        J = nj;
+persist().then(function (ok) {
+          if (!ok) return;
+          DE.ui.toast("导入成功，共 " + nj.stickers.length + " 张图块、" +
+            (nj.library || []).length + " 张徽章 / 贴纸、" + nj.entries.length + " 篇记录。", "ok");
+          selId = null; render();
+        });
+      } catch (err) { DE.ui.toast("导入失败：" + err.message, "err"); }
+    };
+    fr.readAsText(f);
+  };
+  $("#btnClearJ").onclick = function () {
+    DE.ui.confirm({
+      title: "清空手账",
+      body: "会删除全部徽章、贴纸与冒险记录，且无法撤销。建议先导出备份。",
+      okText: "确定清空"
+    }).then(function (ok) {
+      if (!ok) return;
+      J = DE.journal.empty();
+      DE.journal.clearAll().then(function () { return persist(); }).then(function () {
+        DE.ui.toast("手账已清空。", "ok");
+        render();
+      });
+      selId = null; render();
+    });
+  };
+
+}});
+</script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>

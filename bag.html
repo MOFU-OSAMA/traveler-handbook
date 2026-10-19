@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>背包 · 龙蛋物语</title>
+<link rel="stylesheet" href="css/style.css?v=580ae04d">
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title"><span>🎒</span>背包管理</div>
+  <div class="page-sub">尺寸规则、容器容量、耐久与药草保质期管理。所有改动自动保存。</div>
+
+  <div id="expiryBanner"></div>
+
+  <div class="grid c2">
+    <div class="card">
+      <h2>📊 携带状态</h2>
+      <div id="carryBox"></div>
+    </div>
+
+    <!-- 食物与水（每日消耗 · 规则书 p77 / p78） -->
+    <div class="card" style="grid-column:1/-1">
+      <h2>🍖 食物与水<span class="hint" style="font-weight:400;margin-left:8px">每过一天自动消耗食物和水各 1 天份</span></h2>
+      <div id="supplyBox"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>💰 金币</h2>
+      <div id="moneyHero"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>💗 状态值<span class="hint" style="font-weight:400;margin-left:8px">★10 = 状态绝佳</span></h2>
+      <div id="statusPanel"></div>
+    </div>
+
+    <div class="card">
+    <h2>🌿 保质期管理
+      <button class="sm ghost" id="btnOpenClock" style="margin-left:auto">⏱ 游戏时间</button>
+      <button class="sm ghost" id="btnCollectedNow">采集时间设为现在</button>
+      <button class="sm ghost" id="btnPutAllBottle">全部装入药草瓶</button></h2>
+    <div id="expiryTable"></div>
+    </div>
+  </div>
+
+  <!-- 装备栏 -->
+  <div class="card" style="margin-top:16px">
+    <h2>⚔️ 装备栏<span class="hint" style="font-weight:400;margin-left:8px">（装备栏中的道具尺寸视为 0）</span></h2>
+    <div class="grid c4" id="equipSlots"></div>
+  </div>
+
+  <!-- 容器 -->
+  <div class="card" style="margin-top:16px">
+    <h2>📦 容器与容量<span class="hint" style="font-weight:400;margin-left:8px">规则书 p51</span></h2>
+    <div id="containerSummary"></div>
+    <div id="containerBox"></div>
+  </div>
+
+  <!-- 驮货动物 -->
+  <div class="card" style="margin-top:16px;display:none" id="animalCard">
+    <h2>🐴 驮货动物<span class="hint" style="font-weight:400;margin-left:8px">可以帮你搬多个大型容器</span></h2>
+    <div id="animalBox"></div>
+  </div>
+
+  <!-- 散装道具 -->
+  <div class="card" style="margin-top:16px" id="looseCard">
+    <h2>🧺 未入容器的散装道具<span class="hint" style="font-weight:400;margin-left:8px">直接计入持有尺寸</span></h2>
+    <div id="looseBox"></div>
+  </div>
+
+  <!-- 背包 -->
+      <div class="card" style="margin-top:16px">
+      <h2>🧾 交易记录（金币账本）</h2>
+      <div class="hint" style="margin-bottom:11px">
+        每一笔钱的去向都在这里：买东西、卖东西、修理、任务奖励、马车开销、手动调整。
+        按类别可以筛选，方便核对。
+      </div>
+      <div id="ledgerPanel"></div>
+    </div>
+
+<div class="card" style="margin-top:16px">
+    <h2>🎒 道具列表</h2>
+    <div class="filters">
+      <input type="text" id="q" placeholder="搜索名称或说明…">
+      <select id="cat"><option value="all">全部类别</option></select>
+      <select id="sort">
+        <option value="expiry">按保质期紧急度</option>
+        <option value="cat">按类别</option>
+        <option value="size">按尺寸</option>
+        <option value="name">按名称</option>
+        <option value="durability">按耐久</option>
+      </select>
+      <span style="margin-left:auto"></span>
+      <button class="sm" data-view="grid">▦ 格子</button>
+      <button class="sm ghost" data-view="cards">☰ 卡片</button>
+      <span class="badge teal" id="countBadge">—</span>
+    </div>
+    <div class="baglayout">
+        <div id="invList"></div>
+        <div id="bagInsp"></div>
+      </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>ℹ️ 规则提示</h2>
+    <div class="grid c3">
+      <div><h3>尺寸上限</h3><div class="hint">可持有道具的尺寸上限 = <b>体力 + 2 + 旅行者等级</b>。装备栏中的武器、防具与旅途装备视为尺寸 0，不计入持有尺寸。超出上限时，所有判定受到超出值数额的减值。</div></div>
+      <div><h3>耐久</h3><div class="hint">耐久度和道具的尺寸同值。使用道具进行判定且结果为大失败时，耐久度 -1。降为 0 后视为损坏，无法再使用。可以在城市设施中付款进行「道具修理」恢复耐久度。</div></div>
+      <div><h3>容器</h3><div class="hint">容器可以装入与「容量」栏中记载数值相同尺寸的道具。每名角色行走时只能持有 1 个大型容器（木箱 / 水桶 / 背包）。驮货用动物可以搬运多个大型容器。</div></div>
+    </div>
+  </div>
+  <!-- 页脚声明：非商业 · 仅供学习交流 · 版权归属原作者 -->
+  <footer class="notice">
+    <p><b>非商业性个人跑团辅助工具</b>，仅供学习交流使用。规则书《龙蛋物语》的著作权归原作者及出版方所有；本项目与官方无关，也不替代规则书，请支持正版。</p>
+    <p>所有数据仅保存在你自己的浏览器本地（localStorage / IndexedDB），<b>不会上传到任何服务器</b>。换浏览器或清理浏览器数据会丢失，请用首页的「📦 一键导出全部数据」定期备份。</p>
+    <p>如权利方认为本工具侵犯了您的权益，请联系删除，我会第一时间处理。</p>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data/items.js?v=b15018ab"></script>
+<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/magic.js?v=4919a17f"></script>
+<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/archive.js?v=a3f5c344"></script>
+<script src="js/core/saves.js?v=8ff6ddee"></script>
+<script src="js/core/inventory.js?v=530f63bb"></script>
+<script src="js/core/ledger.js?v=776dfae5"></script>
+<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/character.js?v=84aded0e"></script>
+<script>
+DE.ui.bootPage({ after: function () {
+  var c = DE.store.character;
+  var $ = DE.ui.$;
+
+  /* 类别下拉 */
+  $("#cat").innerHTML = '<option value="all">全部类别</option>' +
+    Object.keys(DE.CATEGORIES).map(function (k) {
+      return '<option value="' + k + '">' + DE.CATEGORIES[k].label + "</option>";
+    }).join("");
+
+  /* 游戏时间：改成弹窗，不再占用页面版面 */
+  $("#btnOpenClock").onclick = function () {
+    DE.ui.openClockDialog(function () { renderAll(); });
+  };
+
+  /* 金币账本 + 状态值 */
+  DE.ui.moneyHero($("#moneyHero"), c, function () { refreshMoney(); });
+  DE.ui.ledgerPanel($("#ledgerPanel"), c, function () { refreshMoney(); });
+  DE.ui.statusPanel($("#statusPanel"), c);
+  function refreshMoney() {
+    DE.ui.refreshLedgers();
+    DE.ui.refreshMoneyHeroes();
+    renderCarry();
+  }
+  $("#btnCollectedNow").onclick = function () {
+    /* ⚠️ 必须用**游戏时间** —— 这一页的时间和保质期都按手动推进的游戏时钟算。
+       以前这里写的是 new Date().toISOString()（现实时间），
+       于是"设为现在"会把采集时间定在现实时刻，和游戏时钟差几百天，
+       药草直接显示成过期/永不过期。 */
+    var n = 0, now = DE.gameISO();
+    c.inventory.forEach(function (x) {
+      if (x.kind === "herb" && !x.containerId) { x.collectedISO = now; n++; }
+    });
+    DE.save(c);
+    DE.ui.toast(n ? "已把 " + n + " 个未装瓶药草的采集时间设为「现在」（" +
+      DE.clock.label() + "）。" : "没有未装瓶的药草。", n ? "ok" : "");
+    renderAll();
+  };
+  $("#btnPutAllBottle").onclick = function () {
+    var bottle = DE.hasHerbBottle(c);
+    if (!bottle) { DE.ui.toast("你还没有〈药草瓶〉，请先去商店购买。", "err"); return; }
+    var n = 0, msg = "";
+    c.inventory.filter(function (x) { return x.kind === "herb" && !x.containerId; })
+      .forEach(function (h) {
+        var r = DE.putHerbInBottle(c, h, bottle);
+        if (r.ok) n++; else msg = r.msg;
+      });
+    DE.save(c);
+    DE.ui.toast(n ? "已把 " + n + " 个药草装入〈" + bottle.name + "〉。" : (msg || "没有可装入的药草。"), n ? "ok" : "err");
+    renderAll();
+  };
+
+  /* ---------- 携带状态 ---------- */
+  /* ---------- 携带状态 ---------- */
+  function renderCarry() {
+    var s = DE.char.summary(c);
+    var st = DE.inventoryStats(c);
+    var pct = Math.min(100, Math.round(s.sizeUsed / Math.max(1, s.sizeLimit) * 100));
+    var groups = DE.containerGroups(c);
+    var largeN = groups.large.length;
+    var largeLimit = DE.largeContainerLimit(c);
+    var carryCap = DE.carryCapacityOf(c);
+    var waterDays = DE.waterDaysOf(c);
+    var waterCap = DE.waterCapacityOf(c);
+    var supply = DE.supplyState(c);
+    var mp = DE.movePenalty(c);
+    var largeText = (largeLimit === Infinity)
+      ? largeN + " / ∞（驮货动物驮运）"
+      : largeN + " / " + largeLimit;
+
+    $("#carryBox").innerHTML =
+      '<div class="statgrid">' +
+        '<div class="stat"><div class="k">金币</div><div class="v" style="font-size:16px">' + c.money + "</div></div>" +
+        '<div class="stat"><div class="k">道具数</div><div class="v">' + st.count + "</div></div>" +
+        '<div class="stat"><div class="k">药草</div><div class="v">' + st.herbs + "</div></div>" +
+        '<div class="stat' + (st.damaged ? " warn" : "") + '"><div class="k">已损坏</div><div class="v">' + st.damaged + "</div></div>" +
+      "</div>" +
+
+      '<div style="margin-top:12px"><div class="hint" style="margin-bottom:5px">持有尺寸 ' +
+        s.sizeUsed + " / " + s.sizeLimit +
+        (carryCap ? "（自身 " + s.sizeLimitBase + " ＋ 驮货动物 " + carryCap + "）" : "") +
+        "</div>" +
+        '<div class="bar' + (s.sizeOver ? " warn" : "") + '"><i style="width:' + pct + '%"></i></div></div>' +
+      (s.sizeOver
+        ? '<div class="alert red" style="margin-top:11px"><span class="ico">⚠️</span><div><b>已超出尺寸上限 ' +
+          s.sizeOver + " 点</b>所有判定受到 -" + s.sizeOver + " 的减值。请卖掉或寄存一些道具。</div></div>"
+        : '<div class="alert green" style="margin-top:11px"><span class="ico">✓</span><div>尺寸上限 = 体力 ' +
+          c.abilities.str + " + 2 + 等级 " + c.level +
+          (c.bonus.sizeLimit ? " + 特长 " + c.bonus.sizeLimit : "") +
+          (carryCap ? " + 驮货动物 " + carryCap : "") + " = " + s.sizeLimit +
+          "，仍有 " + (s.sizeLimit - s.sizeUsed) + " 点余量。</div></div>") +
+
+      /* 容器规则状态（规则书 p51） */
+      '<div class="statgrid" style="margin-top:11px">' +
+        '<div class="stat' + (largeLimit !== Infinity && largeN >= largeLimit ? " warn" : "") +
+          '"><div class="k">大型容器</div><div class="v" style="font-size:14px">' + largeText + "</div></div>" +
+        '<div class="stat"><div class="k">可驮尺寸</div><div class="v" style="font-size:14px">' + (carryCap || "—") + "</div></div>" +
+        '<div class="stat"><div class="k">水量</div><div class="v" style="font-size:14px">' +
+          (waterCap ? waterDays + " / " + waterCap : "—") + "</div></div>" +
+        '<div class="stat' + (supply.penalty ? " warn" : "") + '"><div class="k">口粮 / 补给减值</div>' +
+          '<div class="v" style="font-size:14px">' + supply.foodDays + " 天" +
+          (supply.penalty ? "　-" + supply.penalty : "") + "</div></div>" +
+        '<div class="stat' + (mp.value ? " warn" : "") + '"><div class="k">移动判定</div><div class="v" style="font-size:14px">' +
+          (mp.value ? String(mp.value) : "±0") + "</div></div>" +
+      "</div>" +
+      (mp.value
+        ? '<div class="alert gold" style="margin-top:11px"><span class="ico">🐢</span><div>' +
+          DE.ui.esc(mp.reasons.join("；")) + "。</div></div>"
+        : "") +
+      (supply.penalty
+        ? '<div class="alert red" style="margin-top:11px"><span class="ico">🍖</span><div><b>' +
+          DE.ui.esc(DE.supplyWarning(c)) + "</b></div></div>"
+        : "") +
+
+      '<div class="statgrid" style="margin-top:11px">' +
+        '<div class="stat"><div class="k">防御点</div><div class="v">' + s.defense + "</div></div>" +
+        '<div class="stat"><div class="k">格挡力</div><div class="v">' + (s.block || 0) + "</div></div>" +
+        '<div class="stat"><div class="k">装备减值</div><div class="v">' + s.penalty + "</div></div>" +
+      "</div>";
+  }
+
+  /* ---------- 食物与水（每日消耗 · 规则书 p77 / p78） ---------- */
+  function renderSupply() {
+    var box = $("#supplyBox");
+    if (!box) return;
+    var st = DE.supplyState(c);
+    var slots = DE.waterSlots(c);
+    var foods = DE.foodSlots(c);
+
+    var pctW = st.waterCapacity ? Math.round(st.waterDays / st.waterCapacity * 100) : 0;
+    var html =
+      '<div class="statgrid">' +
+        '<div class="stat' + (st.foodShort ? " warn" : "") + '"><div class="k">口粮</div>' +
+          '<div class="v" style="font-size:16px">' + st.foodDays + " 天份</div></div>" +
+        '<div class="stat' + (st.waterShort ? " warn" : "") + '"><div class="k">水</div>' +
+          '<div class="v" style="font-size:16px">' + st.waterDays + " / " + st.waterCapacity + " 天份</div></div>" +
+        '<div class="stat' + (st.shortDays ? " warn" : "") + '"><div class="k">缺粮缺水天数</div>' +
+          '<div class="v" style="font-size:16px">' + st.shortDays + "</div></div>" +
+        '<div class="stat' + (st.penalty ? " warn" : "") + '"><div class="k">补给减值</div>' +
+          '<div class="v" style="font-size:16px">' + (st.penalty ? "-" + st.penalty : "±0") + "</div></div>" +
+      "</div>" +
+      '<div style="margin-top:12px">' +
+        '<div class="hint" style="margin-bottom:5px">存水（水袋 / 魔法瓶 1 天份，水桶 15 天份）　' +
+          st.waterDays + " / " + st.waterCapacity + "</div>" +
+        '<div class="bar' + (st.waterShort ? " warn" : "") + '"><i style="width:' + pctW + '%"></i></div>' +
+      "</div>";
+
+    /* 缺口警告（p78） */
+    if (st.penalty) {
+      html += '<div class="alert red" style="margin-top:11px"><span class="ico">⚠️</span><div><b>' +
+        DE.ui.esc(DE.supplyWarning(c)) + "</b>" +
+        '<div class="hint" style="margin-top:5px">去城镇购买干粮、在水源处补充水，减值才会清零。</div></div></div>';
+    } else if (st.foodShort || st.waterShort) {
+      html += '<div class="alert gold" style="margin-top:11px"><span class="ico">⏳</span><div>' +
+        (st.foodShort ? "口粮不足 1 天份。" : "") + (st.waterShort ? "水不足 1 天份。" : "") +
+        "再旅行一天就会开始累计判定减值。</div></div>";
+    } else {
+      html += '<div class="alert green" style="margin-top:11px"><span class="ico">✓</span><div>' +
+        "补给充足，可以再走 " + Math.min(st.foodDays, st.waterDays) + " 天。</div></div>";
+    }
+
+    /* 水容器明细 */
+    html += '<h3 style="margin-top:15px">水容器</h3>';
+    if (!slots.length) {
+      html += '<div class="hint">还没有能装水的容器。水袋（1 天份，30 G）或水桶（15 天份，10 G）可以去商店买。</div>';
+    } else {
+      html += '<table class="tbl"><thead><tr><th>容器</th><th class="num">存水</th><th class="num">容量</th><th>状态</th></tr></thead><tbody>' +
+        slots.map(function (w) {
+          var pct = w.cap ? Math.round(w.left / w.cap * 100) : 0;
+          return "<tr><td>" + DE.ui.esc(w.name) + "</td><td class='num'>" + w.left +
+            "</td><td class='num'>" + w.cap + "</td><td>" +
+            '<div class="bar" style="min-width:70px"><i style="width:' + pct + '%"></i></div>' +
+            (w.left === 0 ? ' <span style="color:#b0473c">空</span>' : "") + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    }
+    html += '<div class="btnrow" style="margin-top:9px">' +
+      '<button class="sm primary" id="btnRefillWater">💧 补充水（城镇 / 清水源）</button>' +
+      '<span class="hint" style="align-self:center">规则书 p78：水可以在进入城镇、接近清澈水源时自动补给。</span>' +
+      "</div>";
+
+    /* 口粮明细 */
+    html += '<h3 style="margin-top:15px">口粮</h3>';
+    if (!foods.length) {
+      html += '<div class="hint">没有口粮。干粮 10 G 一份，一份 = 一天。食材要炊事处理、酒不算口粮。</div>';
+    } else {
+      html += '<table class="tbl"><thead><tr><th>食物</th><th class="num">数量</th><th class="num">天数</th></tr></thead><tbody>' +
+        foods.map(function (x) {
+          return "<tr><td>" + DE.ui.esc(x.name) + "</td><td class='num'>" + (x.qty || 1) +
+            "</td><td class='num'>" + (x.qty || 1) + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    }
+    html += '<div class="hint" style="margin-top:11px">规则书 p77 旅行流程 ⑤：一天结束时，每人需消耗食物和水各 1 天份。' +
+      "推进游戏时间跨过一天时会自动结算。</div>";
+
+    box.innerHTML = html;
+
+    var rb = $("#btnRefillWater");
+    if (rb) rb.onclick = function () {
+      var n = DE.refillWater(c);
+      DE.save(c);
+      DE.ui.toast(n ? "补充了 " + n + " 天份水。" : "水容器本来就是满的。", n ? "ok" : "");
+      renderAll();
+    };
+  }
+
+  /* ---------- 保质期表 ---------- */
+  function renderExpiry() {
+    var list = DE.expiryList(c);
+    if (!list.length) {
+      $("#expiryTable").innerHTML = '<div class="empty"><span class="big">🌿</span>目前没有会腐坏的物品。<br>' +
+        '<span class="hint">药草可以在商店购买（都市的药草店），也可以用〈药草采摘〉技能采集。</span></div>';
+      return;
+    }
+    var rows = list.map(function (x) {
+      var p = Math.max(0, Math.min(1, x.life.remainMs / x.life.totalMs));
+      var cls = x.life.expired ? "dead" : (p < .15 ? "crit" : (p < .4 ? "soon" : "ok"));
+      var bottle = DE.hasHerbBottle(c);
+      var canBottle = x.inst.kind === "herb" && (!x.inst.containerId || x.inst.containerId !== (bottle && bottle.instId));
+      var holder = x.inst.containerId ? (DE.findInstance(c, x.inst.containerId) || {}).name : null;
+      return "<tr>" +
+        "<td><b>" + DE.ui.esc(x.inst.name) + "</b>" +
+          (x.inst.kind === "herb"
+            ? ' <span class="badge ' + (x.inst.system === "精神系" ? "mind" : x.inst.system === "魔法系" ? "magicb" : "body") + '">' +
+              DE.ui.esc(x.inst.system || "") + "</span>"
+            : "") +
+          '<div class="hint">' + DE.ui.esc(holder ? "存放于〈" + holder + "〉" : "随身携带（未装瓶）") + "</div></td>" +
+        "<td>" + DE.ui.esc(x.life.label) + "</td>" +
+        '<td><div class="shelfbar ' + cls + '"><i style="width:' + Math.round(p * 100) + '%"></i></div></td>' +
+        '<td style="color:' + (x.life.expired ? "#b0473c" : "inherit") + '">' +
+          (x.life.expired ? "<b>已腐坏</b>" : DE.fmtRemain(x.life.remainMs)) + "</td>" +
+        "<td>" + DE.ui.esc(DE.ui.dateLabel(x.life.expireISO)) + "</td>" +
+        "<td>" +
+          (x.life.expired
+            ? '<button class="sm danger" data-drop="' + x.inst.instId + '">丢弃</button>'
+            : '<button class="sm" data-use="' + x.inst.instId + '">使用</button>' +
+              (canBottle && bottle ? '<button class="sm ghost" data-bottle="' + x.inst.instId + '">装瓶</button>' : "")) +
+        "</td></tr>";
+    }).join("");
+    $("#expiryTable").innerHTML =
+      '<table class="tbl"><thead><tr><th>物品</th><th>保质期类型</th><th style="width:130px">剩余</th>' +
+      "<th>剩余时间</th><th>过期时间</th><th>操作</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+      '<div class="hint" style="margin-top:10px">' +
+      DE.ui.esc(DE.HERB_RULES.note) + "<br>" + DE.ui.esc(DE.HERB_RULES.actionCost) +
+      "；持有时尺寸记为 " + DE.HERB_RULES.size + "。</div>";
+
+    DE.ui.$$("[data-use]").forEach(function (b) {
+      b.onclick = function () {
+        var r = DE.useItem(c, b.getAttribute("data-use"));
+        DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+        renderAll();
+      };
+    });
+    DE.ui.$$("[data-bottle]").forEach(function (b) {
+      b.onclick = function () {
+        var inst = DE.findInstance(c, b.getAttribute("data-bottle"));
+        var r = DE.putHerbInBottle(c, inst, null);
+        DE.save(c);
+        DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+        renderAll();
+      };
+    });
+    DE.ui.$$("[data-drop]").forEach(function (b) {
+      b.onclick = function () {
+        var inst = DE.findInstance(c, b.getAttribute("data-drop"));
+        DE.ui.confirm({ title: "丢弃已腐坏的物品", body: "确定丢弃〈" + inst.name + "〉吗？", okText: "丢弃" })
+          .then(function (ok) {
+            if (!ok) return;
+            DE.removeInstance(c, inst.instId); DE.save(c);
+            DE.ui.toast("已丢弃。", "ok"); renderAll();
+          });
+      };
+    });
+  }
+
+  /* ---------- 装备栏 ---------- */
+  function renderEquip() {
+    $("#equipSlots").innerHTML = DE.SLOTS.map(function (sl) {
+      var inst = DE.findInstance(c, c.equipped[sl.key]);
+      var def = inst ? DE.instDef(inst) : null;
+      var eff = inst ? DE.effectiveStats(inst) : null;
+      var extra = "";
+      if (def && def.cat === "weapon") {
+        extra = "命中 " + DE.ui.esc(def.hit) + "<br>伤害 " + DE.ui.esc(def.dmg);
+        var pro = DE.char.weaponStatus(c, def.name);
+        extra += pro.proficient ? ' <span class="badge green">擅长</span>'
+                                : ' <span class="badge red">非擅长</span>';
+      } else if (def && def.cat === "armor") {
+        extra = "防御点 " + eff.def + (eff.penalty ? "　减值 " + eff.penalty : "");
+      } else if (def && def.cat === "shield") {
+        extra = "格挡力 " + eff.block + (eff.penalty ? "　减值 " + eff.penalty : "");
+      }
+      return '<div class="ability-box" style="text-align:left">' +
+        '<div class="nm">' + DE.ui.esc(sl.label) + "</div>" +
+        (inst
+          ? '<div style="font-weight:700;margin:5px 0">' + DE.ui.esc(inst.name) + "</div>" +
+            '<div class="hint" style="font-size:11.5px">' + extra + "<br>耐久 " + inst.durability + "/" + inst.durabilityMax +
+            (inst.traits && inst.traits.length ? "<br>" + inst.traits.map(function (t) {
+              return DE.traitChip(t, true); }).join(" ") : "") + "</div>" +
+            '<div class="btnrow" style="margin-top:7px"><button class="sm ghost" data-unequip="' + sl.key + '">卸下</button></div>'
+          : '<div class="hint" style="margin-top:6px">（空）</div>') +
+        "</div>";
+    }).join("");
+    DE.ui.$$("[data-unequip]").forEach(function (b) {
+      b.onclick = function () {
+        var r = DE.unequip(c, b.getAttribute("data-unequip"));
+        DE.save(c); DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+      };
+    });
+  }
+
+  /* ---------- 容器 ---------- */
+  /* ---------- 容器（规则书 p51） ---------- */
+  /* 单个容器卡片：把 p51 里每种容器的规则都显示出来 */
+  function containerCard(ct) {
+    var d = DE.instDef(ct);
+    var inside = c.inventory.filter(function (x) { return x.containerId === ct.instId; });
+    var isHerb = d.special === "herbBottle";
+    var cap = isHerb ? (d.herbCapacity || 10) : (d.capacity || 0);
+    var used = isHerb ? inside.length : DE.containerUsed(c, ct);
+    var pct = cap ? Math.min(100, Math.round(used / cap * 100)) : 0;
+    var opened = ct.openedISO ? DE.ui.dateLabel(ct.openedISO) : null;
+    var bottleLeft = null;
+    if (isHerb && ct.openedISO) {
+      var lim = new Date(ct.openedISO).getTime() + (d.lifetimeDays || 7) * 24 * 3600 * 1000;
+      bottleLeft = lim - DE.clock.now().getTime();
+    }
+
+    /* 规则徽章 */
+    var badges = "";
+    if (d.cat === "large") badges += '<span class="badge" style="background:#e8eef7">大型容器 · 占 1 个名额</span>';
+    if (d.holdsWater) badges += '<span class="badge">可装水 ' + (d.waterDays || 1) + " 天份</span>";
+    if (d.special === "oneOnly") badges += '<span class="badge">腰上只能别一个</span>';
+    if (d.penaltyNote) badges += '<span class="badge red">携带时移动判定 -1</span>';
+    if (isHerb) badges += '<span class="badge green">最多 ' + (d.herbCapacity || 10) + " 株 · 保存 " + (d.lifetimeDays || 7) + " 天</span>";
+
+    return '<div class="itemcard" style="margin-bottom:11px">' +
+      '<div class="top"><span class="nm">' + DE.ui.esc(ct.name) + "</span>" +
+      '<span class="badge">尺寸 ' + DE.sizeOf(ct) + "</span>" +
+      (cap ? '<span class="badge teal">容量 ' + cap + "</span>" : "") +
+      "</div>" +
+      '<div class="hint">' + DE.ui.esc(d.desc) + "</div>" +
+      (badges ? '<div class="meta" style="margin-top:7px">' + badges + "</div>" : "") +
+      (cap ? '<div class="hint" style="margin-top:7px">' +
+        (isHerb ? "药草 " + used + " / " + cap + " 个" : "已用容量 " + used + " / " + cap) + "</div>" +
+        '<div class="bar' + (used > cap ? " warn" : "") + '" style="margin-top:4px"><i style="width:' + pct + '%"></i></div>'
+        : "") +
+      (opened ? '<div class="hint" style="margin-top:6px">开始使用：' + DE.ui.esc(opened) +
+        (bottleLeft !== null
+          ? (bottleLeft > 0 ? "　剩余保存能力 " + DE.fmtRemain(bottleLeft)
+                            : '　<span style="color:#b0473c"><b>已超过 ' + (d.lifetimeDays || 7) + " 天，失去保存能力</b></span>")
+          : "") + "</div>" : "") +
+      '<div style="margin-top:8px">' +
+        (inside.length
+          ? '<table class="tbl"><thead><tr><th>内容物</th><th class="num">尺寸</th><th class="num">数量</th><th>保质期</th><th></th></tr></thead><tbody>' +
+            inside.map(function (x) {
+              var lf = DE.shelfLife(c, x);
+              return "<tr><td>" + DE.ui.esc(x.name) + "</td><td class='num'>" + DE.sizeOf(x) +
+                "</td><td class='num'>" + (x.qty || 1) + "</td><td>" +
+                (lf ? (lf.expired ? '<span style="color:#b0473c">已腐坏</span>' : "剩 " + DE.fmtRemain(lf.remainMs)) : "—") +
+                "</td><td><button class='sm ghost' data-take='" + x.instId + "'>取出</button></td></tr>";
+            }).join("") + "</tbody></table>"
+          : '<div class="hint">（空）</div>') +
+      "</div></div>";
+  }
+
+  function containerSection(title, note, list) {
+    return '<h3 style="margin-top:15px">' + title + "</h3>" +
+      '<div class="hint" style="margin-bottom:8px">' + note + "</div>" +
+      list.map(containerCard).join("");
+  }
+
+  function renderContainers() {
+    var g = DE.containerGroups(c);
+    var total = g.large.length + g.container.length + g.special.length;
+    var summary = $("#containerSummary");
+    if (summary) {
+      summary.innerHTML =
+        '<div class="statgrid">' +
+          '<div class="stat"><div class="k">大型容器</div><div class="v">' + g.large.length + "</div></div>" +
+          '<div class="stat"><div class="k">小型容器</div><div class="v">' + g.container.length + "</div></div>" +
+          '<div class="stat"><div class="k">药草瓶</div><div class="v">' + g.special.length + "</div></div>" +
+        "</div>";
+    }
+    if (!total) {
+      $("#containerBox").innerHTML = '<div class="empty"><span class="big">📦</span>还没有容器。容器可以装入与「容量」栏相同尺寸的道具。<br><span class="hint">去商店购买背包、麻袋、水桶或药草瓶吧。</span></div>';
+      return;
+    }
+    var html = "";
+    if (g.large.length) html += containerSection("大型容器", "木箱 / 水桶 / 背包 —— 没有驮货动物时每名角色只能带 1 个", g.large);
+    if (g.container.length) html += containerSection("小型容器", "麻袋 / 腰包 / 水袋 / 魔法瓶", g.container);
+    if (g.special.length) html += containerSection("药草瓶", "专门保存药草：最多 10 株，从开始使用算起第 7 天失效", g.special);
+    $("#containerBox").innerHTML = html;
+    DE.ui.$$("[data-take]").forEach(function (b) {
+      b.onclick = function () {
+        var x = DE.findInstance(c, b.getAttribute("data-take"));
+        x.containerId = null; DE.save(c);
+        DE.ui.toast("已取出〈" + x.name + "〉，未装瓶的药草保质期仅 24 小时。", "");
+        renderAll();
+      };
+    });
+  }
+
+  /* ---------- 驮货动物 ---------- */
+  function renderAnimals() {
+    var card = $("#animalCard"), box = $("#animalBox");
+    if (!card || !box) return;
+    var animals = c.inventory.filter(function (x) {
+      var d = DE.instDef(x);
+      return d && d.cat === "animal";
+    });
+    if (!animals.length) { card.style.display = "none"; return; }
+    card.style.display = "";
+    var cap = DE.carryCapacityOf(c);
+    var packs = DE.packAnimals(c).length;
+    box.innerHTML =
+      '<div class="hint" style="margin-bottom:9px">' +
+        (packs
+          ? "驮货动物能额外驮运 <b>" + cap + "</b> 点尺寸，并且能帮你搬运<b>多个大型容器</b>（规则书 p51）。"
+          : "这只不是「驮货」类动物，不能帮你搬大型容器、也不增加可驮尺寸。") +
+      "</div>" +
+      animals.map(function (a) {
+        var d = DE.instDef(a);
+        var tag;
+        if (d.animal === "驮货") tag = '<span class="badge teal">可驮 ' + (d.carryCapacity || 0) + " 点</span>";
+        else if (d.animal === "骑乘") tag = '<span class="badge">可骑乘 ' + (d.rideCapacity || 1) + " 人</span>";
+        else tag = '<span class="badge">宠物</span>';
+        return '<div class="itemcard" style="margin-bottom:9px">' +
+          '<div class="top"><span class="nm">' + DE.ui.esc(a.name) + "</span>" + tag + "</div>" +
+          '<div class="hint">' + DE.ui.esc(d.desc || "") + "</div></div>";
+      }).join("");
+  }
+
+  /* ---------- 未入容器的散装道具 ---------- */
+  function renderLoose() {
+    var card = $("#looseCard"), box = $("#looseBox");
+    if (!card || !box) return;
+    var loose = DE.looseItems(c);
+    if (!loose.length) { card.style.display = "none"; return; }
+    card.style.display = "";
+    var size = loose.reduce(function (s, x) { return s + DE.sizeOf(x) * (x.qty || 1); }, 0);
+    box.innerHTML =
+      '<div class="hint" style="margin-bottom:9px">这些道具没有装进任何容器，<b>直接计入持有尺寸</b>（共 ' +
+        size + " 点）。买个背包 / 麻袋能把它们收进去。</div>" +
+      '<table class="tbl"><thead><tr><th>道具</th><th class="num">尺寸</th><th class="num">数量</th><th>类别</th></tr></thead><tbody>' +
+      loose.map(function (x) {
+        var d = DE.instDef(x);
+        var cat = (DE.CATEGORIES[d.cat] || {}).label || d.cat;
+        return "<tr><td>" + DE.ui.esc(x.name) + "</td><td class='num'>" + DE.sizeOf(x) +
+          "</td><td class='num'>" + (x.qty || 1) + "</td><td>" + DE.ui.esc(cat) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  }
+
+  /* ---------- 筛选 / 排序（两种视图共用） ---------- */
+  function filteredList() {
+    var q = (($("#q") && $("#q").value) || "").toLowerCase();
+    var cat = ($("#cat") && $("#cat").value) || "all";
+    var sort = ($("#sort") && $("#sort").value) || "expiry";
+    var list = c.inventory.slice();
+
+    if (cat !== "all") {
+      list = list.filter(function (x) {
+        var d = DE.instDef(x);
+        return d && d.cat === cat;
+      });
+    }
+    if (q) {
+      list = list.filter(function (x) {
+        var d = DE.instDef(x);
+        return (x.name + " " + ((d && d.desc) || "")).toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    list.sort(function (a, b) {
+      if (sort === "expiry") {
+        var la = DE.shelfLife(c, a), lb = DE.shelfLife(c, b);
+        if (la && lb) return la.remainMs - lb.remainMs;
+        if (la) return -1; if (lb) return 1;
+        return 0;
+      }
+      if (sort === "size") return DE.sizeOf(b) - DE.sizeOf(a);
+      if (sort === "durability") return (a.durability || 0) - (b.durability || 0);
+      if (sort === "name") return a.name.localeCompare(b.name, "zh-CN");
+      var da = DE.instDef(a), db = DE.instDef(b);
+      return ((da && da.cat) || "").localeCompare((db && db.cat) || "");
+    });
+
+    return list;
+  }
+
+  /* ---------- 单张道具卡（卡片视图与右侧检视共用） ---------- */
+  function cardHtml(x) {
+
+      var d = DE.instDef(x);
+      var lf = DE.shelfLife(c, x);
+      var damaged = x.durability !== undefined && x.durability <= 0;
+      var cls = "itemcard" + (damaged ? " dmg" : "") + (x.equipped ? " equipped" : "") +
+                (lf && lf.expired ? " expired" : "");
+      var meta = [];
+      meta.push('<span class="badge">' + DE.ui.esc((DE.CATEGORIES[d.cat] || {}).label || "") + "</span>");
+      meta.push('<span class="badge">尺寸 ' + DE.sizeOf(x) + "</span>");
+      if (x.qty > 1) meta.push('<span class="badge teal">×' + x.qty + "</span>");
+      if (d.slot) meta.push('<span class="badge gold">可装备</span>');
+      if (x.containerId) {
+        var holder = DE.findInstance(c, x.containerId);
+        if (holder) meta.push('<span class="badge">在〈' + DE.ui.esc(holder.name) + "〉</span>");
+      }
+      (x.traits || []).forEach(function (t) { meta.push(DE.traitChip(t)); });
+
+      var shelf = "";
+      if (lf) {
+        var p = Math.max(0, Math.min(1, lf.remainMs / lf.totalMs));
+        var sc = lf.expired ? "dead" : (p < .15 ? "crit" : (p < .4 ? "soon" : "ok"));
+        shelf = '<div class="shelf"><span class="lab">' + (lf.expired ? "已过期" : "剩 " + DE.fmtRemain(lf.remainMs)) +
+          '</span><span class="shelfbar ' + sc + '"><i style="width:' + Math.round(p * 100) + '%"></i></span></div>' +
+          '<div class="hint" style="font-size:11px">保质期 ' + DE.ui.esc(lf.label) +
+          "　过期于 " + DE.ui.esc(DE.ui.dateLabel(lf.expireISO)) + "</div>";
+      }
+      var dur = "";
+      if (!d.noDurability) {
+        dur = '<div class="hint" style="font-size:11.5px">耐久 ' +
+          (damaged ? '<span style="color:#b0473c"><b>' + x.durability + "/" + x.durabilityMax + "（已损坏）</span></b>"
+                   : x.durability + "/" + x.durabilityMax) + "</div>";
+      }
+
+      var btns = [];
+      if (d.slot && !x.equipped) {
+        DE.SLOTS.filter(function (s) { return s.accept.indexOf(d.cat) >= 0; }).forEach(function (s) {
+          btns.push('<button class="sm" data-eq="' + x.instId + '" data-slot="' + s.key + '">装备·' + DE.ui.esc(s.label) + "</button>");
+        });
+      }
+      if (x.equipped) btns.push('<button class="sm ghost" data-uneq="' + x.instId + '">卸下</button>');
+      if (x.kind === "herb" || (d.consumable) || d.cat === "food")
+        btns.push('<button class="sm" data-use="' + x.instId + '">使用</button>');
+      if (x.containerId)
+        btns.push('<button class="sm ghost" data-out="' + x.instId + '">取出</button>');
+      else {
+        var rooms = c.inventory.filter(function (y) {
+          var dd = DE.instDef(y);
+          return dd && (dd.cat === "container" || dd.cat === "large") && (dd.capacity || 0) > 0;
+        });
+        rooms.forEach(function (rm) {
+          if (DE.containerUsed(c, rm) + DE.sizeOf(x) <= DE.containerCapacity(rm))
+            btns.push('<button class="sm ghost" data-in="' + x.instId + '" data-ct="' + rm.instId + '">放入' + DE.ui.esc(rm.name) + "</button>");
+        });
+      }
+      if (x.kind === "herb" && !x.containerId && DE.hasHerbBottle(c))
+        btns.push('<button class="sm" data-bottle="' + x.instId + '">装瓶</button>');
+      if (!d.noDurability) {
+        btns.push('<button class="sm ghost" data-dmg="' + x.instId + '">耐久-1</button>');
+        if (damaged) btns.push('<button class="sm gold" data-repair="' + x.instId + '">修理 ' + DE.repairCost(x) + "G</button>");
+      }
+      btns.push('<button class="sm danger" data-sell="' + x.instId + '">卖出 ' + Math.floor((x.paidPrice || 0) / 2) + "G</button>");
+
+      return '<div class="' + cls + '">' +
+        '<div class="top"><span class="nm">' + DE.ui.esc(x.name) + "</span>" +
+        '<span class="price">' + (x.paidPrice != null ? x.paidPrice + " G" : "") + "</span></div>" +
+        '<div class="meta">' + meta.join("") + "</div>" +
+        (d.desc ? '<div class="desc">' + DE.ui.esc(d.desc) + "</div>" : "") +
+        shelf + dur +
+        '<div class="btnrow">' + btns.join("") + "</div></div>";
+  }
+
+  /* ---------- 视图：卡片列表 ---------- */
+  function renderCards(list) {
+    $("#countBadge").textContent = "共 " + list.length + " 项";
+
+    if (!list.length) {
+      $("#invList").innerHTML = '<div class="empty"><span class="big">🎒</span>没有符合条件的道具。<br>' +
+        '<span class="hint">去 <a href="shop.html">商店</a> 采购吧。</span></div>';
+      return;
+    }
+
+    $("#invList").innerHTML = '<div class="grid c3">' + list.map(cardHtml).join("") + "</div>";
+
+    bindActions($("#invList"));
+  }
+
+  /* 把卡片上的按钮绑上动作（卡片视图与检视面板共用） */
+  function bindActions(root) {
+    function bind(attr, fn) {
+      DE.ui.$$("[data-" + attr + "]", root).forEach(function (b) {
+        b.onclick = function () { fn(b.getAttribute("data-" + attr), b); renderAll(); };
+      });
+    }
+    bind("eq", function (id, b) {
+      var r = DE.equip(c, id, b.getAttribute("data-slot"));
+      DE.save(c); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+    bind("uneq", function (id) {
+      var inst = DE.findInstance(c, id);
+      var r = DE.unequip(c, inst.equippedSlot || "");
+      DE.save(c); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+    bind("use", function (id) {
+      var r = DE.useItem(c, id); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+    bind("out", function (id) {
+      var x = DE.findInstance(c, id); x.containerId = null; DE.save(c);
+      DE.ui.toast("已取出〈" + x.name + "〉。", "ok");
+    });
+    bind("in", function (id, b) {
+      var x = DE.findInstance(c, id);
+      var ct = DE.findInstance(c, b.getAttribute("data-ct"));
+      var need = DE.sizeOf(x) * (x.qty || 1);
+      if (DE.containerUsed(c, ct) + need > DE.containerCapacity(ct)) {
+        DE.ui.toast("〈" + ct.name + "〉容量不足。", "err"); return;
+      }
+      x.containerId = ct.instId; DE.save(c);
+      DE.ui.toast("已把〈" + x.name + "〉放入〈" + ct.name + "〉。", "ok");
+    });
+    bind("bottle", function (id) {
+      var inst = DE.findInstance(c, id);
+      var r = DE.putHerbInBottle(c, inst, null);
+      DE.save(c); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+    bind("dmg", function (id) {
+      var r = DE.damageItem(c, id, 1); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+    bind("repair", function (id) {
+      var r = DE.repair(c, id); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+    bind("sell", function (id) {
+      var r = DE.sell(c, id, 1); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+    });
+  }
+
+  /* ============================================================
+   *  格子背包（游戏式）
+   *  ============================================================ */
+  var VIEW = "grid";            // grid | cards
+  var SEL = null;               // 选中的 instId
+
+  var CAT_ORDER = ["weapon", "armor", "shield", "shoes", "cloak", "cane",
+                   "head", "accessory", "container", "large", "food",
+                   "daily", "camp", "herb", "set", "animal", "other"];
+
+  function sortForGrid(list) {
+    return list.slice().sort(function (a, b) {
+      var da = DE.instDef(a), db = DE.instDef(b);
+      var ka = CAT_ORDER.indexOf((da && da.cat) || "other");
+      var kb = CAT_ORDER.indexOf((db && db.cat) || "other");
+      if (ka < 0) ka = 99; if (kb < 0) kb = 99;
+      if (ka !== kb) return ka - kb;
+      var ea = a.equipped ? 0 : 1, eb = b.equipped ? 0 : 1;
+      if (ea !== eb) return ea - eb;
+      return String(a.name).localeCompare(String(b.name), "zh-CN");
+    });
+  }
+
+  /* 一个格子的 HTML */
+  function cellHtml(x, i) {
+    var d = DE.instDef(x) || {};
+    var lf = DE.shelfLife(c, x);
+    var damaged = x.durability !== undefined && x.durability <= 0;
+    var cls = "slot" + (x.equipped ? " eq" : "") + (damaged ? " broken" : "") +
+              (lf && lf.expired ? " expired" : "") + (SEL === x.instId ? " sel" : "");
+    if (lf && !lf.expired) {
+      var p = lf.remainMs / lf.totalMs;
+      if (p < .15) cls += " crit"; else if (p < .4) cls += " soon";
+    }
+    var badges = "";
+    if (x.qty > 1) badges += '<span class="qty">' + x.qty + "</span>";
+    if (x.equipped) badges += '<span class="eqmark">E</span>';
+    if (lf && !lf.expired) badges += '<span class="dot fresh"></span>';
+    if (lf && lf.expired) badges += '<span class="dot dead"></span>';
+    if (x.containerId) badges += '<span class="inmark">📦</span>';
+    var traitKinds = (x.traits || []).map(function (t) { return DE.traitStyle(t).kind; });
+    var kind = traitKinds.length ? traitKinds[0] : "";
+    return '<div class="' + cls + '" data-cell="' + x.instId + '" data-kind="' + kind + '" ' +
+      'style="--i:' + (i % 60) + '">' +
+      '<span class="ic">' + (d.icon || "❔") + "</span>" +
+      badges +
+      '<span class="nm">' + DE.ui.esc(x.name) + "</span>" +
+      "</div>";
+  }
+
+  function renderGrid(list) {
+    $("#countBadge").textContent = "共 " + list.length + " 项";
+    if (!list.length) {
+      $("#invList").innerHTML = '<div class="empty"><span class="big">🎒</span>背包是空的。<br>' +
+        '<span class="hint">去 <a href="shop.html">商店</a> 采购吧。</span></div>';
+      $("#bagInsp").innerHTML = "";
+      return;
+    }
+    var sorted = sortForGrid(list);
+    $("#invList").innerHTML =
+      '<div class="baggrid">' + sorted.map(cellHtml).join("") +
+      Array(Math.max(0, (5 - (sorted.length % 5)) % 5)).fill('<div class="slot blank"></div>').join("") +
+      "</div>";
+    renderInspector(sorted);
+    bindGrid();
+  }
+
+  /* 右侧：选中道具的详情 */
+  function renderInspector(list) {
+    var box = $("#bagInsp");
+    if (!box) return;
+    var x = SEL ? DE.findInstance(c, SEL) : null;
+    if (!x || (list && list.indexOf(x) < 0)) {
+      SEL = null;
+      box.innerHTML = '<div class="card"><div class="binsp-empty">' +
+        '<span class="big">🎒</span>点格子查看道具详情<br>' +
+        '<span class="hint">双击使用 · 右键菜单</span></div></div>';
+      return;
+    }
+    box.innerHTML = '<div id="inspBody">' + cardHtml(x) + "</div>";
+    bindActions(box);
+  }
+
+  /* 网格交互 */
+  function bindGrid() {
+    DE.ui.$$("[data-cell]").forEach(function (el) {
+      var id = el.getAttribute("data-cell");
+      el.onclick = function () { SEL = id; renderList(); };
+      el.ondblclick = function () {
+        SEL = id;
+        var x = DE.findInstance(c, id);
+        var d = DE.instDef(x) || {};
+        if (d.consumable || x.kind === "herb" || d.cat === "food") {
+          var r = DE.useItem(c, id); DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+          renderAll();
+        } else if (d.slot && !x.equipped) {
+          var sl = DE.SLOTS.filter(function (s) { return s.accept.indexOf(d.cat) >= 0; })[0];
+          if (sl) {
+            var r2 = DE.equip(c, id, sl.key);
+            DE.save(c); DE.ui.toast(r2.msg, r2.ok ? "ok" : "err");
+          } else DE.ui.toast("〈" + x.name + "〉不能装备。", "");
+          renderAll();
+        } else if (x.equipped) {
+          var r3 = DE.unequip(c, x.equippedSlot || "");
+          DE.save(c); DE.ui.toast(r3.msg, r3.ok ? "ok" : "err");
+          renderAll();
+        } else {
+          renderList();
+        }
+      };
+      el.oncontextmenu = function (ev) {
+        ev.preventDefault();
+        SEL = id;
+        var x = DE.findInstance(c, id);
+        var d = DE.instDef(x) || {};
+        var items = [];
+        if (d.slot && !x.equipped) {
+          DE.SLOTS.filter(function (s) { return s.accept.indexOf(d.cat) >= 0; })
+            .forEach(function (s) { items.push(["装备·" + s.label, function () {
+              var r = DE.equip(c, id, s.key); DE.save(c);
+              DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+            }]); });
+        }
+        if (x.equipped) items.push(["卸下", function () {
+          var r = DE.unequip(c, x.equippedSlot || ""); DE.save(c);
+          DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+        }]);
+        if (d.consumable || x.kind === "herb" || d.cat === "food")
+          items.push(["使用", function () {
+            var r = DE.useItem(c, id); DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+          }]);
+        if (x.kind === "herb" && !x.containerId)
+          items.push(["装入药草瓶", function () {
+            var r = DE.putHerbInBottle(c, x, null); DE.save(c);
+            DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+          }]);
+        if (x.containerId) items.push(["从容器取出", function () {
+          x.containerId = null; DE.save(c); DE.ui.toast("已取出〈" + x.name + "〉。", "ok"); renderAll();
+        }]);
+        if (!d.noDurability) items.push(["耐久 −1（测试用）", function () {
+          var r = DE.damageItem(c, id, 1); DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+        }]);
+        if (!d.noDurability) items.push(["修理", function () {
+          var r = DE.repair(c, id); DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+        }]);
+        items.push(["卖出 1 个", function () {
+          var r = DE.sell(c, id, 1); DE.ui.toast(r.msg, r.ok ? "ok" : "err"); renderAll();
+        }]);
+        items.push(["丢弃 1 个", function () {
+          DE.ui.confirm({ title: "丢弃道具", okText: "丢弃", body: "确定丢弃 1 个〈" + x.name + "〉？" })
+            .then(function (ok) {
+              if (!ok) return;
+              DE.dropItem(c, id, 1); DE.save(c);
+              DE.ui.toast("已丢弃。", ""); renderAll();
+            });
+        }]);
+        DE.ui.contextMenu(ev.clientX, ev.clientY, items);
+      };
+    });
+  }
+
+  /* 视图分派 */
+  function renderList() {
+    var list = filteredList();
+    DE.ui.$$("[data-view]").forEach(function (b) {
+      b.className = "sm" + (b.getAttribute("data-view") === VIEW ? "" : " ghost");
+    });
+    if (VIEW === "grid") renderGrid(list); else renderCards(list);
+  }
+
+  $("#q").addEventListener("input", renderList);
+  $("#cat").addEventListener("change", renderList);
+  $("#sort").addEventListener("change", renderList);
+  DE.ui.$$("[data-view]").forEach(function (b) {
+    b.onclick = function () {
+      VIEW = b.getAttribute("data-view");
+      renderList();
+    };
+  });
+
+  function renderAll() {
+    var cb = $("#clockScaleBadge");
+    if (cb) cb.textContent = "游戏时间 " + DE.clock.label();
+    renderCarry(); renderSupply(); renderExpiry(); renderEquip(); renderContainers();
+    renderAnimals(); renderLoose();
+    renderList();
+    DE.ui.expiryBanner($("#expiryBanner"));
+  }
+  DE.onTick = renderAll;
+  renderAll();
+}});
+</script>
+<script src="tools/geom.js?v=b5e8592e"></script>
+</body>
+</html>
