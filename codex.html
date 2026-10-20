@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>图鉴 · 龙蛋物语</title>
-<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<link rel="stylesheet" href="css/style.css?v=1afb06c2">
 </head>
 <body>
 <div class="wrap">
@@ -24,16 +24,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/data/items.js?v=b15018ab"></script>
-<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/items.js?v=0a752df4"></script>
+<script src="js/data/rules.js?v=1974519d"></script>
 <script src="js/data/magic.js?v=4919a17f"></script>
-<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/state.js?v=70eff126"></script>
 <script src="js/core/archive.js?v=a3f5c344"></script>
 <script src="js/core/saves.js?v=8ff6ddee"></script>
-<script src="js/core/inventory.js?v=530f63bb"></script>
-<script src="js/core/ledger.js?v=776dfae5"></script>
-<script src="js/core/ui.js?v=b8a639f8"></script>
-<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/core/inventory.js?v=9f0b49da"></script>
+<script src="js/core/ledger.js?v=3e9fd21a"></script>
+<script src="js/core/ui.js?v=300204c3"></script>
+<script src="js/core/character.js?v=6b6ae62a"></script>
 <script>
 DE.ui.bootPage({ after: function () {
   var $ = DE.ui.$;
@@ -119,9 +119,29 @@ DE.ui.bootPage({ after: function () {
   }
 
   /* ---------- 药草 ---------- */
+  function herbPrice(level) {
+    var pl = DE.HERB_RULES.priceByLevel.filter(function (p) { return p.level === level; })[0];
+    if (!pl) return "—";
+    return pl.price == null ? (pl.priceText || "非卖品") : pl.price + " G";
+  }
+  /* apply 是结构化效果（游戏内结算用）。有 apply 的药草标一个「联动」徽标，
+     title 里写清楚结算内容，跑团时鼠标悬停即可对照。 */
+  function herbApplyText(h) {
+    var a = h.apply;
+    if (!a) return "";
+    if (a.buff && a.buff.label) return a.buff.label;
+    var parts = [];
+    if (a.heal) parts.push("回复 " + a.heal + " 点 HP");
+    if (a.cureSystem) parts.push("解除" + a.cureSystem + "异常状态");
+    if (a.statusJudgeBonus) parts.push("【状态判定】+" + a.statusJudgeBonus);
+    return parts.join("；");
+  }
   function paneHerbs() {
     var bySys = {};
     DE.HERBS.forEach(function (h) { (bySys[h.system] = bySys[h.system] || []).push(h); });
+    var SYS = ["身体系", "精神系", "魔法系"];
+    var order = SYS.filter(function (s) { return bySys[s]; })
+      .concat(Object.keys(bySys).filter(function (s) { return SYS.indexOf(s) < 0; }));
     var html = '<div class="card"><h2>🌿 药草</h2>' +
       '<div class="alert gold"><span class="ico">⏳</span><div><b>保质期（重要）</b>' +
       "采集或购买 <b>" + DE.HERB_RULES.freshHours + " 小时</b> 后，药草会腐坏，不能再使用。" +
@@ -130,23 +150,37 @@ DE.ui.bootPage({ after: function () {
       DE.ui.esc(DE.HERB_RULES.note) + "<br>" + DE.ui.esc(DE.HERB_RULES.actionCost) +
       "；持有时药草的尺寸记为 " + DE.HERB_RULES.size + "。<br>" + DE.ui.esc(DE.HERB_RULES.magicNote) +
       "</div></div>" +
+      '<div class="hint" style="margin-top:10px">共 <b>' + DE.HERBS.length + "</b> 种药草：" +
+      order.map(function (s) { return s + " " + bySys[s].length + " 种"; }).join(" / ") +
+      "。价格由等级决定；等级 4-5 为非卖品，只能在对应地貌采集。" +
+      "带 <span class='badge green'>联动</span> 徽标的药草已接入游戏内效果结算，鼠标悬停可查看具体结算内容。</div>" +
       "<h3>市场价格</h3><table class='tbl'><thead><tr><th>等级</th><th class='num'>价格（金币）</th></tr></thead><tbody>" +
       DE.HERB_RULES.priceByLevel.map(function (p) {
         return "<tr><td>等级 " + p.level + "</td><td class='num'>" +
           (p.price == null ? p.priceText : p.price) + "</td></tr>";
       }).join("") + "</tbody></table>";
 
-    Object.keys(bySys).forEach(function (sys) {
+    order.forEach(function (sys) {
       var list = bySys[sys];
       var cls = sys === "精神系" ? "mind" : (sys === "魔法系" ? "magicb" : "body");
-      html += "<h3><span class='badge " + cls + "'>" + sys + "</span>（" + list.length + " 种）</h3>" +
-        "<table class='tbl'><thead><tr><th>名称</th><th class='num'>等级</th><th>地貌</th><th>药用部位</th>" +
-        "<th>使用效果</th><th>植物介绍</th></tr></thead><tbody>" +
+      var sysDef = DE.HERB_SYSTEMS && DE.HERB_SYSTEMS[sys];
+      html += "<h3><span class='badge " + cls + "'>" + sys + "</span>（" + list.length + " 种）" +
+        (sysDef ? "<span class='hint' style='font-weight:400;margin-left:8px'>" + DE.ui.esc(sysDef.effect) + "</span>" : "") +
+        "</h3><table class='tbl'><thead><tr><th>图标</th><th>名称</th><th class='num'>等级</th>" +
+        "<th class='num'>价格</th><th>出现地貌</th><th>使用部位</th><th>使用效果</th><th>植物描述</th>" +
+        "</tr></thead><tbody>" +
         list.map(function (h) {
-          return "<tr><td><b>" + DE.ui.esc(h.name) + "</b></td><td class='num'>" + h.level +
-            "</td><td>" + DE.ui.esc(h.terrain) + "</td><td>" + DE.ui.esc(h.part) +
-            "</td><td style='font-size:12.5px'>" + DE.ui.esc(h.effect) +
-            "</td><td style='font-size:12.5px;color:#8a7f6c'>" + DE.ui.esc(h.desc) + "</td></tr>";
+          var apply = herbApplyText(h);
+          return "<tr><td style='font-size:18px;line-height:1.2;text-align:center'>" + DE.ui.esc(h.icon || "🌿") + "</td>" +
+            "<td><b>" + DE.ui.esc(h.name) + "</b></td>" +
+            "<td class='num'>" + h.level + "</td>" +
+            "<td class='num'>" + herbPrice(h.level) + "</td>" +
+            "<td>" + DE.ui.esc(h.terrain) + "</td>" +
+            "<td>" + DE.ui.esc(h.part) + "</td>" +
+            "<td style='font-size:12.5px'>" + DE.ui.esc(h.effect) +
+            (apply ? " <span class='badge green' title='" + DE.ui.esc("游戏内联动：" + apply) + "'>联动</span>" : "") +
+            "</td>" +
+            "<td style='font-size:12.5px;color:#8a7f6c'>" + DE.ui.esc(h.desc) + "</td></tr>";
         }).join("") + "</tbody></table>";
     });
 

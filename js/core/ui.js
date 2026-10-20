@@ -183,6 +183,19 @@ DE.clock = {
     c.gameISO = new Date(t).toISOString();
     DE.clock.save(c);
     DE.clock._settleSupply(beforeDay, DE.clock.dayNumber());
+
+    /* 跨天后清理「当天有效」的药草增益（月下的雪割草等） */
+    try {
+      var _ch = DE.store && DE.store.character;
+      if (_ch && DE.expireBuffs) {
+        var _gone = DE.expireBuffs(_ch);
+        if (_gone.length) {
+          if (DE.save) DE.save(_ch);
+          DE.clock.lastExpiredBuffs = _gone;
+        }
+      }
+    } catch (e) {}
+
     return c;
   },
 

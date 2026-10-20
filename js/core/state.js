@@ -40,11 +40,15 @@ DE.newCharacter = function (over) {
     gender: "",
     age: "",
     profession: "",
+    sideJob: "",                  // 〈副业〉选的技能名（只有带〈副业〉的职业才能选，判定 -1）
+    craftCats: [],               // 手艺人「物品制造」可制作的道具种类（选择职业时决定）
+    craftLog: [],                // 工坊记录（修理 / 物品制造的历史，独立于金币账本）
     talent: "",                  // 战斗 | 技术 | 魔法
     spells: [],                  // 已学会的一般魔法编号（咒语书）
     seasonMagic: "",             // 季节魔法选择的季节（春/夏/秋/冬）
     mpCurrent: null,             // 当前 MP（null 表示未记录，按上限算）
     hpCurrent: null,             // 当前 HP（null 表示未记录，按上限算）—— 旅行规则要改它
+    buffs: [],                   // 药草带来的临时增益（DE.useHerb / DE.buffAdd）
     abilitySet: "standard",      // average | standard | special
     // 能力值（存骰子阶段数值）
     abilities: { str: 4, agi: 4, int: 4, spr: 4 },
@@ -97,6 +101,8 @@ DE.statusPenalties = function (c) {
   var out = {};
   if (!c || !Array.isArray(c.statuses)) return out;
   c.statuses.forEach(function (st) {
+    /* 应急处理：1 小时内该异常状态被无效化，不再压制能力值 */
+    if (DE.statusNullified && DE.statusNullified(st)) return;
     var def = DE.statusDef ? DE.statusDef(st.name) : null;
     var keys = (def && def.affects) || [];
     keys.forEach(function (k) { out[k] = (out[k] || 0) + 1; });
@@ -257,6 +263,10 @@ DE.load = function () {
 
 /* 兼容旧版本存档 / 补全缺失字段 */
 DE.migrate = function (c) {
+  if (!Array.isArray(c.buffs)) c.buffs = [];   /* 老存档补上药草增益字段 */
+  if (typeof c.sideJob !== "string") c.sideJob = "";   /* 老存档补上〈副业〉字段 */
+  if (!Array.isArray(c.craftCats)) c.craftCats = [];   /* 老存档补上制作种类 */
+  if (!Array.isArray(c.craftLog)) c.craftLog = [];   /* 老存档补上工坊记录 */
   /* 模板不要带「初始金币」那一笔，否则老存档会被加上并不存在的 1000 G 账目 */
   var base = DE.newCharacter({ bootstrap: false });
   (function merge(dst, src) {

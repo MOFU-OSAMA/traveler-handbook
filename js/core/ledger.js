@@ -17,6 +17,7 @@ DE.ledger = {
     buy:     { icon: "🛒", name: "购物",     dir: "out", color: "#d9776b" },
     sell:    { icon: "💰", name: "卖出",     dir: "in",  color: "#69c07a" },
     repair:  { icon: "🔧", name: "修理",     dir: "out", color: "#c98b6a" },
+    craft:   { icon: "🔨", name: "制作材料", dir: "out", color: "#c9a26a" },
     wage:    { icon: "🧾", name: "工资 / 报酬", dir: "in", color: "#69c07a" },
     wagepay: { icon: "👷", name: "支付报酬", dir: "out", color: "#d9776b" },
     wagon:   { icon: "🐴", name: "马车",     dir: "out", color: "#4ec9d4" },

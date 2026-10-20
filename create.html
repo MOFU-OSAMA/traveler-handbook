@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>车卡 · 龙蛋物语</title>
-<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<link rel="stylesheet" href="css/style.css?v=1afb06c2">
 </head>
 <body>
 
@@ -189,19 +189,19 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/data/items.js?v=b15018ab"></script>
-<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/items.js?v=0a752df4"></script>
+<script src="js/data/rules.js?v=1974519d"></script>
 <script src="js/data/magic.js?v=4919a17f"></script>
-<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/state.js?v=70eff126"></script>
 <script src="js/core/archive.js?v=a3f5c344"></script>
 <script src="js/core/saves.js?v=8ff6ddee"></script>
-<script src="js/core/inventory.js?v=530f63bb"></script>
-<script src="js/core/ledger.js?v=776dfae5"></script>
-<script src="js/core/ui.js?v=b8a639f8"></script>
+<script src="js/core/inventory.js?v=9f0b49da"></script>
+<script src="js/core/ledger.js?v=3e9fd21a"></script>
+<script src="js/core/ui.js?v=300204c3"></script>
 <script src="js/core/storage.js?v=a1e43811"></script>
 <script src="js/core/portrait.js?v=b2d8f47d"></script>
 <script src="js/core/journal.js?v=0789d6b9"></script>
-<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/core/character.js?v=6b6ae62a"></script>
 <script>
   /* ---------- 异常状态（规则书 p74-p75） ---------- */
   /* 异常状态：规则书 p74-p75。 */
@@ -263,7 +263,11 @@ DE.ui.bootPage({ after: function () {
     });
   });
   $("#f_profession").addEventListener("change", function () {
-    c.profession = this.value; DE.save(c); renderAll();
+    c.profession = this.value;
+    /* 换职业后〈副业〉可能不再合法（只有农民有副业）—— 清掉，避免脏数据 */
+    var sj = DE.sideJobInfo(c);
+    if (!sj.eligible || (c.sideJob && sj.skills.indexOf(c.sideJob) < 0)) c.sideJob = "";
+    DE.save(c); renderAll();
   });
   $("#f_talent").addEventListener("change", function () {
     c.talent = this.value; DE.char.applyBonuses(c); DE.save(c); renderAll();
@@ -307,16 +311,103 @@ DE.ui.bootPage({ after: function () {
     var p = DE.PROFESSIONS.filter(function (x) { return x.id === c.profession; })[0];
     if (!p) { $("#profInfo").innerHTML = '<div class="hint">尚未选择职业。</div>'; return; }
     var sk = DE.char.professionSkills(c);
-    var rows = sk.map(function (k) {
-      return '<tr><td><b>' + DE.ui.esc(k.name) + '</b></td><td>' + DE.ui.esc(k.ability) +
-        '</td><td>' + DE.ui.esc(k.target) + '</td></tr>' +
+    var rows = sk.map(function (kk) {
+      return '<tr><td><b>' + DE.ui.esc(kk.name) + '</b></td><td>' + DE.ui.esc(kk.ability) +
+        '</td><td>' + DE.ui.esc(kk.target) + '</td></tr>' +
         '<tr><td colspan="3" style="color:#6b5f50;font-size:12.5px;white-space:pre-wrap">' +
-        DE.ui.esc(k.effect) + "</td></tr>";
+        DE.ui.esc(kk.effect) + "</td></tr>";
     }).join("");
-    $("#profInfo").innerHTML =
+    var html =
       '<div class="hint" style="margin-bottom:7px">' + DE.ui.esc(p.role) + '</div>' +
       '<table class="tbl"><thead><tr><th>技能</th><th>使用能力值</th><th>目标值</th></tr></thead>' +
       "<tbody>" + rows + "</tbody></table>";
+
+    /* ---- 〈副业〉：只有带这个技能的职业（农民）才显示 ---- */
+    var sj = DE.sideJobInfo(c);
+    if (sj.eligible) {
+      var opts = '<option value="">— 还没选 —</option>' + sj.skills.map(function (n) {
+        var d = (DE.PROFESSION_SKILLS || {})[n] || {};
+        return '<option value="' + DE.ui.esc(n) + '"' + (sj.skill === n ? " selected" : "") + ">" +
+          DE.ui.esc(n) + "（" + DE.ui.esc(d.ability || "—") + "）</option>";
+      }).join("");
+      var curD = sj.skill ? ((DE.PROFESSION_SKILLS || {})[sj.skill] || {}) : null;
+      html += '<div class="sidejob">' +
+        '<h3>副业<span class="hint" style="font-weight:400;margin-left:8px">农民专属 · 规则书技能表</span></h3>' +
+        '<div class="hint">' + DE.ui.esc(sj.note) + '</div>' +
+        '<label class="fld" style="margin-top:9px"><span>副业技能</span>' +
+          '<select id="f_sideJob">' + opts + "</select></label>" +
+        (curD
+          ? '<div class="alert gold" style="margin-top:9px"><span class="ico">-1</span><div>' +
+              "<b>" + DE.ui.esc(sj.skill) + "</b>　使用能力值 " + DE.ui.esc(curD.ability || "—") +
+              "　目标值 " + DE.ui.esc(curD.target || "—") +
+              '<div style="white-space:pre-wrap;font-size:12.5px;margin-top:5px">' +
+                DE.ui.esc(curD.effect || "") + "</div>" +
+              '<div class="hint" style="margin-top:5px">〈副业〉选的技能，<b>所有判定 -1</b>。' +
+                (DE.TOOL_SKILLS && DE.TOOL_SKILLS[sj.skill] ? "　本工具已为该技能做了专门界面。" : "　该技能目前只能用通用判定。") +
+              "</div></div></div>"
+          : '<div class="hint" style="margin-top:7px">还没选副业 —— 选了之后该技能才能用（判定 -1）。</div>') +
+        "</div>";
+    }
+    /* ---- 可制作的道具种类（有〈物品制造〉技能时才显示） ---- */
+    if (DE.canUseSkill(c, "物品制造").ok) {
+      html += craftCatsHtml();
+    }
+
+    $("#profInfo").innerHTML = html;
+    bindSideJobSelect();
+    bindCraftCats();
+  }
+
+  /* 手艺人：可制作的道具种类（多选） */
+  function craftCatsHtml() {
+    var cur = c.craftCats || [];
+    var cats = Object.keys(DE.CATEGORIES).filter(function (k) {
+      return (DE.CRAFT_EXCLUDE_CATS || []).indexOf(k) < 0;
+    });
+    var chips = cats.map(function (k) {
+      var cc = DE.CATEGORIES[k];
+      var on = cur.indexOf(k) >= 0;
+      return '<span class="chip' + (on ? " active" : "") + '" data-craftcat="' + DE.ui.esc(k) + '">' +
+        DE.ui.esc((cc.icon || "") + " " + (cc.label || k)) + "</span>";
+    }).join("");
+    return '<div class="sidejob">' +
+      '<h3>可制作的道具种类<span class="hint" style="font-weight:400;margin-left:8px">手艺人 · 物品制造</span></h3>' +
+      '<div class="hint">规则书：〈物品制造〉只能制作「<b>选择职业时决定的道具种类</b>」里的道具。' +
+        "原书没有规定能选几种 —— 按你们团的约定选（点一下开关）。</div>" +
+      '<div class="chips" id="craftCatChips" style="margin-top:9px">' + chips + "</div>" +
+      '<div class="hint" style="margin-top:6px">' +
+        (cur.length
+          ? "已选 <b>" + cur.length + "</b> 种。"
+          : '<span style="color:#b0473c">还没选 —— 没选的话〈物品制造〉用不了。</span>') +
+      "</div></div>";
+  }
+
+  function bindCraftCats() {
+    var box = DE.ui.$("#craftCatChips");
+    if (!box) return;
+    DE.ui.$$("[data-craftcat]", box).forEach(function (ch) {
+      ch.onclick = function () {
+        var k = ch.getAttribute("data-craftcat");
+        var arr = c.craftCats || (c.craftCats = []);
+        var i = arr.indexOf(k);
+        if (i >= 0) arr.splice(i, 1); else arr.push(k);
+        DE.save(c);
+        renderProf();
+        if (typeof renderCheck === "function") renderCheck();
+      };
+    });
+  }
+
+  /* 副业下拉框：改完只重画职业块 + 自检，**不要**调 renderAll（会递归） */
+  function bindSideJobSelect() {
+    var sel = $("#f_sideJob");
+    if (!sel) return;
+    sel.onchange = function () {
+      c.sideJob = sel.value || "";
+      DE.save(c);
+      renderProf();
+      if (typeof renderCheck === "function") renderCheck();
+    };
   }
 
   /* ---------- 特长信息 ---------- */
@@ -619,6 +710,7 @@ DE.ui.bootPage({ after: function () {
     H.push(pvRow("等级 / 经验", pvEsc(c.level || 1) + " / " + pvEsc(c.exp || 0)));
     H.push(pvRow("性别 / 年龄", pvEsc(c.gender || "—") + " / " + pvEsc(c.age || "—")));
     H.push(pvRow("职业", pvEsc(profNm(c.profession))));
+    if (c.sideJob) H.push(pvRow("副业", pvEsc(c.sideJob) + '　<span class="pv-tag">判定 -1</span>'));
     H.push(pvRow("特长", pvEsc(typeNm(c.talent))));
     H.push(pvRow("擅长武器", pvEsc((c.favoredWeapons || []).filter(Boolean).join("、") || "—")));
     H.push(pvRow("擅长地貌", pvEsc(c.favoredTerrain || "—")));
@@ -690,6 +782,14 @@ DE.ui.bootPage({ after: function () {
     H.push(pvRow("判定减值合计", pen.value ? '<b class="pv-warn">' + pen.value + "</b>" : "±0"));
     var mp = DE.movePenalty(c);
     if (mp.value) H.push(pvRow("移动判定额外", '<b class="pv-warn">' + mp.value + "</b>（木箱）"));
+    /* 药草带来的临时增益 */
+    var bl = (DE.buffList ? DE.buffList(c) : []) || [];
+    if (bl.length) {
+      H.push(pvRow("药草增益", bl.map(function (b) {
+        return pvEsc(b.herbName || "药草") + '　<span class="pv-tag">' +
+          pvEsc(b.label || "") + "</span>";
+      }).join("<br>")));
+    }
     H.push("</table></section>");
     H.push("</div>");
     H.push("</div>"); /* /page1 */

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>背包 · 龙蛋物语</title>
-<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<link rel="stylesheet" href="css/style.css?v=1afb06c2">
 </head>
 <body>
 <div class="wrap">
@@ -35,17 +35,41 @@
       <div id="statusPanel"></div>
     </div>
 
-    <div class="card">
+    <div class="card" style="grid-column:1/-1">
     <h2>🌿 保质期管理
       <button class="sm ghost" id="btnOpenClock" style="margin-left:auto">⏱ 游戏时间</button>
       <button class="sm ghost" id="btnCollectedNow">采集时间设为现在</button>
       <button class="sm ghost" id="btnPutAllBottle">全部装入药草瓶</button></h2>
     <div id="expiryTable"></div>
     </div>
+
+    <!-- 药草增益：使用药草后作用到角色身上的临时效果 -->
+    <div class="card" style="margin-top:16px">
+      <h2>🌿 药草增益<span class="hint" style="font-weight:400;margin-left:8px">使用药草后作用在你身上的效果</span></h2>
+      <div id="buffBox"></div>
+    </div>
+
+    <!-- 药师技能：治疗 / 应急处理 / 药草采摘（只有药师看得见） -->
+    <div class="card" id="apoCard" style="grid-column:1/-1;margin-top:16px;display:none">
+      <h2>💊 药师技能<span class="hint" style="font-weight:400;margin-left:8px">治疗 / 应急处理 / 药草采摘</span></h2>
+      <div id="apoBox"></div>
+    </div>
+
+    <!-- 通用技能判定：本职 + 副业 -->
+    <div class="card" id="skCard" style="grid-column:1/-1;margin-top:16px">
+      <h2>📜 技能<span class="hint" style="font-weight:400;margin-left:8px">本职技能 + 副业技能 · 规则书技能表</span></h2>
+      <div id="skBox"></div>
+    </div>
+
+    <!-- 工坊：修理 / 物品制造（手艺人系技能） -->
+    <div class="card" id="craftCard" style="grid-column:1/-1;margin-top:16px;display:none">
+      <h2>🔨 工坊<span class="hint" style="font-weight:400;margin-left:8px">修理 / 物品制造 · 规则书 p36</span></h2>
+      <div id="craftBox"></div>
+    </div>
   </div>
 
   <!-- 装备栏 -->
-  <div class="card" style="margin-top:16px">
+  <div class="card" style="grid-column:1/-1;margin-top:16px">
     <h2>⚔️ 装备栏<span class="hint" style="font-weight:400;margin-left:8px">（装备栏中的道具尺寸视为 0）</span></h2>
     <div class="grid c4" id="equipSlots"></div>
   </div>
@@ -121,16 +145,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/data/items.js?v=b15018ab"></script>
-<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/items.js?v=0a752df4"></script>
+<script src="js/data/rules.js?v=1974519d"></script>
 <script src="js/data/magic.js?v=4919a17f"></script>
-<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/state.js?v=70eff126"></script>
 <script src="js/core/archive.js?v=a3f5c344"></script>
 <script src="js/core/saves.js?v=8ff6ddee"></script>
-<script src="js/core/inventory.js?v=530f63bb"></script>
-<script src="js/core/ledger.js?v=776dfae5"></script>
-<script src="js/core/ui.js?v=b8a639f8"></script>
-<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/core/inventory.js?v=9f0b49da"></script>
+<script src="js/core/ledger.js?v=3e9fd21a"></script>
+<script src="js/core/ui.js?v=300204c3"></script>
+<script src="js/core/character.js?v=6b6ae62a"></script>
 <script>
 DE.ui.bootPage({ after: function () {
   var c = DE.store.character;
@@ -338,6 +362,15 @@ DE.ui.bootPage({ after: function () {
   }
 
   /* ---------- 保质期表 ---------- */
+  /* 紧凑显示用：MM-DD HH:mm */
+  function shortDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    function p(n) { return (n < 10 ? "0" : "") + n; }
+    return p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " +
+      p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
   function renderExpiry() {
     var list = DE.expiryList(c);
     if (!list.length) {
@@ -351,19 +384,23 @@ DE.ui.bootPage({ after: function () {
       var bottle = DE.hasHerbBottle(c);
       var canBottle = x.inst.kind === "herb" && (!x.inst.containerId || x.inst.containerId !== (bottle && bottle.instId));
       var holder = x.inst.containerId ? (DE.findInstance(c, x.inst.containerId) || {}).name : null;
+      var sysCls = x.inst.system === "精神系" ? "mind" : (x.inst.system === "魔法系" ? "magicb" : "body");
+      var sysTag = (x.inst.kind === "herb" && x.inst.system)
+        ? ' <span class="badge ' + sysCls + '">' + DE.ui.esc(x.inst.system) + "</span>"
+        : "";
+      var pv = DE.herbPreview ? DE.herbPreview(c, x.inst) : null;
+      var meta = [holder ? ("〈" + holder + "〉") : "随身"];
+      if (x.life.label) meta.push(x.life.label);
+      if (pv && pv.tags.length) meta.push(pv.tags.join("；"));
+      var remainTxt = x.life.expired ? "已腐坏" : DE.fmtRemainBrief(x.life.remainMs);
       return "<tr>" +
-        "<td><b>" + DE.ui.esc(x.inst.name) + "</b>" +
-          (x.inst.kind === "herb"
-            ? ' <span class="badge ' + (x.inst.system === "精神系" ? "mind" : x.inst.system === "魔法系" ? "magicb" : "body") + '">' +
-              DE.ui.esc(x.inst.system || "") + "</span>"
-            : "") +
-          '<div class="hint">' + DE.ui.esc(holder ? "存放于〈" + holder + "〉" : "随身携带（未装瓶）") + "</div></td>" +
-        "<td>" + DE.ui.esc(x.life.label) + "</td>" +
-        '<td><div class="shelfbar ' + cls + '"><i style="width:' + Math.round(p * 100) + '%"></i></div></td>' +
-        '<td style="color:' + (x.life.expired ? "#b0473c" : "inherit") + '">' +
-          (x.life.expired ? "<b>已腐坏</b>" : DE.fmtRemain(x.life.remainMs)) + "</td>" +
-        "<td>" + DE.ui.esc(DE.ui.dateLabel(x.life.expireISO)) + "</td>" +
-        "<td>" +
+        '<td><span class="nm">' + DE.ui.esc(x.inst.name) + "</span>" + sysTag +
+          '<div class="sub">' + DE.ui.esc(meta.join(" · ")) + "</div></td>" +
+        '<td><div class="shelfwrap" title="' + DE.ui.esc(DE.fmtRemain(x.life.remainMs)) + '">' +
+          '<div class="shelfbar ' + cls + '"><i style="width:' + Math.round(p * 100) + '%"></i></div>' +
+          '<span class="mono' + (x.life.expired ? " warn" : "") + '">' + remainTxt + "</span></div></td>" +
+        '<td class="sub mid">' + DE.ui.esc(shortDate(x.life.expireISO)) + "</td>" +
+        '<td class="acts">' +
           (x.life.expired
             ? '<button class="sm danger" data-drop="' + x.inst.instId + '">丢弃</button>'
             : '<button class="sm" data-use="' + x.inst.instId + '">使用</button>' +
@@ -371,20 +408,25 @@ DE.ui.bootPage({ after: function () {
         "</td></tr>";
     }).join("");
     $("#expiryTable").innerHTML =
-      '<table class="tbl"><thead><tr><th>物品</th><th>保质期类型</th><th style="width:130px">剩余</th>' +
-      "<th>剩余时间</th><th>过期时间</th><th>操作</th></tr></thead><tbody>" + rows + "</tbody></table>" +
-      '<div class="hint" style="margin-top:10px">' +
+      '<table class="tbl cmp"><thead><tr><th>物品</th><th style="width:160px">剩余</th>' +
+      '<th style="width:105px">过期</th><th>操作</th></tr></thead><tbody>' + rows + "</tbody></table>" +
+      '<div class="hint" style="margin-top:9px">' +
       DE.ui.esc(DE.HERB_RULES.note) + "<br>" + DE.ui.esc(DE.HERB_RULES.actionCost) +
       "；持有时尺寸记为 " + DE.HERB_RULES.size + "。</div>";
 
-    DE.ui.$$("[data-use]").forEach(function (b) {
+    DE.ui.$$("[data-use]", $("#expiryTable")).forEach(function (b) {
       b.onclick = function () {
-        var r = DE.useItem(c, b.getAttribute("data-use"));
+        var id = b.getAttribute("data-use");
+        var inst = DE.findInstance(c, id);
+        /* 药草：效果作用到角色属性上（HP / 异常状态 / 增益）；其余道具仍走普通消耗 */
+        var r = (inst && inst.kind === "herb")
+          ? DE.useHerb(c, id)
+          : DE.useItem(c, id);
         DE.ui.toast(r.msg, r.ok ? "ok" : "err");
         renderAll();
       };
     });
-    DE.ui.$$("[data-bottle]").forEach(function (b) {
+    DE.ui.$$("[data-bottle]", $("#expiryTable")).forEach(function (b) {
       b.onclick = function () {
         var inst = DE.findInstance(c, b.getAttribute("data-bottle"));
         var r = DE.putHerbInBottle(c, inst, null);
@@ -393,7 +435,7 @@ DE.ui.bootPage({ after: function () {
         renderAll();
       };
     });
-    DE.ui.$$("[data-drop]").forEach(function (b) {
+    DE.ui.$$("[data-drop]", $("#expiryTable")).forEach(function (b) {
       b.onclick = function () {
         var inst = DE.findInstance(c, b.getAttribute("data-drop"));
         DE.ui.confirm({ title: "丢弃已腐坏的物品", body: "确定丢弃〈" + inst.name + "〉吗？", okText: "丢弃" })
@@ -937,11 +979,636 @@ DE.ui.bootPage({ after: function () {
     };
   });
 
+  /* 药草增益列表 */
+  function renderBuffs() {
+    var box = $("#buffBox");
+    if (!box) return;
+    var list = DE.buffList ? DE.buffList(c) : [];
+    if (!list.length) {
+      box.innerHTML = '<div class="empty"><span class="big">🌿</span>没有生效中的药草增益。<br>' +
+        '<span class="hint">在上面的「保质期管理」里点〈使用〉，效果会作用到这里。</span></div>';
+      return;
+    }
+    var SCOPE = { next: "下一次判定", nextMagic: "下一场魔法", day: "当天有效", scene: "场景内有效" };
+    var rows = list.map(function (b) {
+      return "<tr>" +
+        "<td><b>" + DE.ui.esc(b.herbName || "药草") + "</b></td>" +
+        "<td>" + DE.ui.esc(b.label || "") + "</td>" +
+        '<td><span class="badge">' + DE.ui.esc(SCOPE[b.scope] || b.scope) + "</span></td>" +
+        '<td><button class="sm ghost" data-buffdel="' + DE.ui.esc(b.id) + '">清除</button></td>' +
+        "</tr>";
+    }).join("");
+    box.innerHTML = '<table class="tbl"><thead><tr><th>来源</th><th>效果</th><th>有效期</th><th>操作</th></tr></thead><tbody>' +
+      rows + "</tbody></table>" +
+      '<div class="hint" style="margin-top:10px">' +
+      "「下一次判定 / 下一场魔法」的增益会在用掉后自动消失；「当天有效」的增益跨天自动失效。</div>";
+
+    DE.ui.$$("[data-buffdel]", box).forEach(function (b) {
+      b.onclick = function () {
+        DE.buffRemove(c, b.getAttribute("data-buffdel"));
+        DE.save(c);
+        DE.ui.toast("已清除该增益。", "ok");
+        renderAll();
+      };
+    });
+  }
+
+/* ============ 💊 药师技能 ============ */
+  function renderApothecary() {
+    var card = $("#apoCard"), box = $("#apoBox");
+    if (!card || !box) return;
+    var st = (DE.apothecary ? DE.apothecary.state(c) : null);
+    if (!st || !st.anySkill) { card.style.display = "none"; return; }
+    card.style.display = "";
+
+    /* 副业提示：本页的药师技能可能来自〈副业〉，判定 -1 */
+    var fromSide = (st.heal.sideJob || st.firstAid.sideJob || st.gather.sideJob);
+    var sideNote = fromSide
+      ? '<div class="hint" style="margin-bottom:9px">你的这些技能来自〈<b>副业</b>〉：' +
+        '<b>' + DE.ui.esc(c.sideJob || "") + '</b>，判定 <b>-1</b>。</div>'
+      : "";
+
+    var statusList = st.statuses.length
+      ? st.statuses.map(function (x) {
+          var nulled = DE.statusNullified && DE.statusNullified(x);
+          return '<span class="chip">' + DE.ui.esc(x.name) + ' <b>' + x.value + '</b>' +
+            (x.emergencyISO ? '　<span class="hint">已处理</span>' : "") +
+            (nulled ? '　<span class="badge teal">无效化中</span>' : "") + '</span>';
+        }).join(" ")
+      : '<span class="hint">没有异常状态</span>';
+
+    function penTag(o) {
+      return o.sideJob ? ' <span class="badge red">副业 -1</span>' : "";
+    }
+
+    var blocks = [];
+
+    /* 💊 治疗 */
+    if (st.heal.ok) {
+      blocks.push(
+        '<div>' +
+          '<h3>💊 治疗' + penTag(st.heal) + '</h3>' +
+          '<div class="hint">消耗 1 个药草 + 1 天份的水，回复【智力+精神判定】点 HP。<br>' +
+            '战斗中改为【智力判定（一个骰子）】的结果点数。</div>' +
+          '<div class="statrow" style="margin:8px 0">' +
+            '<span class="chip">可用药草 <b>' + st.herbCount + '</b></span>' +
+            '<span class="chip">水 <b>' + st.water + '</b> 天份</span>' +
+          '</div>' +
+          '<div class="btnrow"><button class="primary sm" id="btnApoHeal"' +
+            (st.canHeal ? '' : ' disabled') + '>使用治疗…</button></div>' +
+          (st.canHeal ? "" : '<div class="hint" style="margin-top:5px">需要「未腐坏的药草」和「1 天份的水」。</div>') +
+        '</div>');
+    }
+
+    /* 🩹 应急处理 */
+    if (st.firstAid.ok) {
+      blocks.push(
+        '<div>' +
+          '<h3>🩹 应急处理' + penTag(st.firstAid) + '</h3>' +
+          '<div class="hint">判定【智力+精神】≥ 异常状态数值：<b>1 小时内无效化</b>，数值永久 <b>-' +
+            (c.level || 1) + '</b>（药师等级）。<br>同一次异常只能处理一次；判定失败可以再试。</div>' +
+          '<div style="margin:8px 0">' + statusList + '</div>' +
+          '<div class="btnrow"><button class="ghost sm" id="btnApoFirstAid"' +
+            (st.statuses.length ? '' : ' disabled') + '>应急处理…</button></div>' +
+        '</div>');
+    }
+
+    /* 🌱 药草采摘 */
+    if (st.gather.ok) {
+      blocks.push(
+        '<div>' +
+          '<h3>🌱 药草采摘' + penTag(st.gather) + '</h3>' +
+          '<div class="hint">早晨【移动判定】前，1 天最多 1 次。判定【体力+智力】≥ 地貌数值。<br>' +
+            '成功获得 1 个药草；大成功 3 个；大失败【中毒：6】。</div>' +
+          '<div class="statrow" style="margin:8px 0">' +
+            '<span class="chip">今天：<b>' + (st.gatheredToday ? "已采摘" : "还没采摘") + '</b></span>' +
+          '</div>' +
+          '<div class="btnrow"><button class="ghost sm" id="btnApoGather"' +
+            (st.canGather ? '' : ' disabled') + '>去采摘…</button></div>' +
+        '</div>');
+    }
+
+    /* 固定列数：3 块用 g3，2 块用 g2，1 块用 g1（不再用会自适应变多的 c2/c3） */
+    var gcls = blocks.length >= 3 ? "g3" : (blocks.length === 2 ? "g2" : "g1");
+    box.innerHTML = sideNote +
+      '<div class="grid ' + gcls + '">' + blocks.join("") + '</div>';
+
+    var bh = $("#btnApoHeal"); if (bh) bh.onclick = openHealDialog;
+    var bf = $("#btnApoFirstAid"); if (bf) bf.onclick = openFirstAidDialog;
+    var bg = $("#btnApoGather"); if (bg) bg.onclick = openGatherDialog;
+  }
+
+
+  /* ---- 治疗弹窗 ---- */
+  function openHealDialog() {
+    var herbs = DE.apothecary.usableHerbs(c);
+    if (!herbs.length) { DE.ui.toast("没有可用的药草（未腐坏的）。", "err"); return; }
+    function herbOptions() {
+      return herbs.map(function (x) {
+        var lf = DE.shelfLife(c, x);
+        return '<option value="' + DE.ui.esc(x.instId) + '">' + DE.ui.esc(x.name) +
+          (lf ? "（" + DE.ui.esc(DE.fmtRemain(lf.remainMs)) + "）" : "") + "</option>";
+      }).join("");
+    }
+    DE.ui.modal("💊 治疗",
+      '<div class="hint">消耗 1 个药草 + 1 天份的水（现有 <b>' + DE.waterDaysOf(c) + '</b> 天份）。</div>' +
+      '<label class="fld"><span>使用药草</span><select id="apoHealHerb">' + herbOptions() + "</select></label>" +
+      '<label class="fld"><span>场景</span><select id="apoHealScene">' +
+        '<option value="">平时（智力+精神 判定）</option>' +
+        '<option value="1">战斗中（智力单骰）</option></select></label>' +
+      '<div id="apoHealOut" style="margin-top:10px"></div>',
+      [
+        { label: "开始治疗", cls: "primary", fn: function (ov) {
+            var sel = DE.ui.$("#apoHealHerb", ov);
+            var hid = sel ? sel.value : "";
+            if (!hid) { DE.ui.toast("没有可用的药草了。", "err"); return false; }
+            var combat = DE.ui.$("#apoHealScene", ov).value === "1";
+            var r = DE.apothecary.heal(c, { instId: hid, inCombat: combat });
+            var out = DE.ui.$("#apoHealOut", ov);
+            if (out) out.innerHTML = '<div class="alert ' + (r.ok ? "green" : "red") +
+              '"><span class="ico">' + (r.ok ? "✅" : "⚠️") + '</span><div>' +
+              DE.ui.esc(r.msg) + "</div></div>";
+            renderAll();
+            /* 刷新下拉：药草被用掉了 */
+            var left = DE.apothecary.usableHerbs(c);
+            herbs = left;
+            if (sel) {
+              sel.innerHTML = left.length ? herbOptions() : '<option value="">（没有可用药草）</option>';
+            }
+            if (!r.ok) DE.ui.toast(r.msg, "err");
+            return false;   /* 不关闭，让玩家看清判定点数 */
+          } },
+        { label: "关闭", cls: "ghost" }
+      ]);
+  }
+
+  /* ---- 应急处理弹窗 ---- */
+  function openFirstAidDialog() {
+    var list = c.statuses || [];
+    if (!list.length) { DE.ui.toast("没有异常状态。", ""); return; }
+    function rows() {
+      return list.map(function (x) {
+        var done = !!x.emergencyISO;
+        var nulled = DE.statusNullified && DE.statusNullified(x);
+        return '<div class="row" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #e7e0cf">' +
+          "<div style='flex:1'><b>" + DE.ui.esc(x.name) + "</b>　数值 " + x.value +
+            '　<span class="hint">' + DE.ui.esc(DE.statusSystemOf(x.name) || "") + "</span>" +
+            (nulled ? '　<span class="badge teal">无效化中</span>' : "") +
+            (done ? '　<span class="badge">已处理</span>' : "") +
+          "</div>" +
+          '<button class="sm ' + (done ? "ghost" : "primary") + '" data-fa="' +
+            DE.ui.esc(x.name) + '"' + (done ? " disabled" : "") + ">应急处理</button></div>";
+      }).join("");
+    }
+    DE.ui.modal("🩹 应急处理",
+      '<div class="hint">使该异常状态 <b>1 小时内无效化</b>（不再压制能力值），' +
+      "数值永久 <b>-" + (c.level || 1) + "</b>（药师等级）。同一次异常只能处理一次。</div>" +
+      '<div id="apoFaList" style="margin-top:8px">' + rows() + "</div>" +
+      '<div id="apoFaOut" style="margin-top:10px"></div>',
+      [{ label: "关闭", cls: "ghost" }],
+      function (ov) {
+        function bind() {
+          DE.ui.$$("[data-fa]", ov).forEach(function (b) {
+            b.onclick = function () {
+              var r = DE.apothecary.firstAid(c, b.getAttribute("data-fa"));
+              var out = DE.ui.$("#apoFaOut", ov);
+              if (out) out.innerHTML = '<div class="alert ' + (r.ok ? "green" : "red") +
+                '"><span class="ico">' + (r.ok ? "✅" : "⚠️") + '</span><div>' +
+                DE.ui.esc(r.msg) + "</div></div>";
+              /* 重画列表（更新「已处理」状态与数值） */
+              list = c.statuses || [];
+              var host = DE.ui.$("#apoFaList", ov);
+              if (host) { host.innerHTML = rows(); bind(); }
+              renderAll();
+              return false;
+            };
+          });
+        }
+        bind();
+      });
+  }
+
+  /* ---- 药草采摘弹窗 ---- */
+  function openGatherDialog() {
+    var opts = (DE.TERRAIN_LEVELS || []).map(function (g) {
+      return g.names.map(function (nm) {
+        return '<option value="' + g.target + '">' + DE.ui.esc(nm) + "（地貌 " + g.target + " 级）</option>";
+      }).join("");
+    }).join("");
+    DE.ui.modal("🌱 药草采摘",
+      '<div class="hint">判定：<b>体力 + 智力</b>，目标值 = 地貌数值（早晨【移动判定】前，1 天最多 1 次）。</div>' +
+      '<label class="fld"><span>当前地貌</span><select id="apoGatherT">' + opts + "</select></label>" +
+      '<div class="hint">如果天气 / 地形有额外修正，改下面的目标值。</div>' +
+      '<label class="fld"><span>目标值</span><input type="number" id="apoGatherTarget" value="6" min="1" step="1" style="width:90px"></label>' +
+      '<div id="apoGatherOut" style="margin-top:10px"></div>' +
+      '<div id="apoGatherPick" style="margin-top:10px"></div>',
+      [
+        { label: "采摘", cls: "primary", fn: function (ov) {
+            var tv = DE.ui.$("#apoGatherTarget", ov);
+            var r = DE.apothecary.gather(c, { target: tv ? tv.value : 7 });
+            var out = DE.ui.$("#apoGatherOut", ov);
+            if (out) out.innerHTML = '<div class="alert ' + (r.ok ? (r.critFail ? "red" : "green") : "red") +
+              '"><span class="ico">' + (r.critFail ? "💀" : (r.bigOk ? "✨" : (r.gathered ? "🌿" : "❌"))) +
+              '</span><div>' + DE.ui.esc(r.msg) + "</div></div>";
+            renderAll();
+            if (!r.ok) { DE.ui.toast(r.msg, "err"); return false; }
+            if (r.gathered > 0 && r.needPick) {
+              var pickHost = DE.ui.$("#apoGatherPick", ov);
+              var all = DE.HERBS;
+              var sel = all.map(function (h) {
+                return '<option value="' + DE.ui.esc(h.id) + '">' +
+                  DE.ui.esc((h.icon || "") + " " + h.name + "〔" + h.system + "·Lv" + h.level +
+                  (h.terrain ? "·" + h.terrain : "") + "〕") + "</option>";
+              }).join("");
+              pickHost.innerHTML =
+                '<b>选择获得的药草（' + r.gathered + ' 个）</b>' +
+                '<div class="hint">规则书按地貌有对应药草表；本工具没有收录那张表，所以让你按当前地貌自己挑。</div>' +
+                '<select id="apoGatherHerb" style="margin-top:6px">' + sel + "</select>" +
+                '<div class="btnrow" style="margin-top:8px"><button class="sm primary" id="apoGatherTake">领取</button></div>' +
+                '<div id="apoGatherTakeOut" style="margin-top:8px"></div>';
+              var take = DE.ui.$("#apoGatherTake", pickHost);
+              if (take) take.onclick = function () {
+                var hid = DE.ui.$("#apoGatherHerb", pickHost).value;
+                var g = DE.apothecary.grant(c, hid, r.gathered);
+                var tin = DE.ui.$("#apoGatherTakeOut", pickHost);
+                if (tin) tin.innerHTML = '<div class="alert green"><span class="ico">🌿</span><div>' +
+                  DE.ui.esc(g.msg) + "</div></div>";
+                DE.ui.toast(g.msg, g.ok ? "ok" : "err");
+                renderAll();
+                var tb = DE.ui.$("#apoGatherTake", pickHost);
+                if (tb) { tb.disabled = true; tb.className = "sm ghost"; }
+              };
+            }
+            /* 每天只能采一次，重开后按钮自然禁用 */
+            var tvv = DE.ui.$("#apoGatherTarget", ov);
+            if (tvv) tvv.disabled = true;
+            return false;
+          } },
+        { label: "关闭", cls: "ghost" }
+      ],
+      function (ov) {
+        /* 选地貌自动带出目标值 */
+        var s = DE.ui.$("#apoGatherT", ov), tIn = DE.ui.$("#apoGatherTarget", ov);
+        if (s && tIn) s.onchange = function () { tIn.value = s.value; };
+        if (s && tIn) tIn.value = s.value;
+      });
+  }
+
+/* ============ 📜 技能面板（本职 + 副业） ============ */
+  function renderSkills() {
+    var box = $("#skBox");
+    if (!box) return;
+    var list = DE.skillListOf ? DE.skillListOf(c) : [];
+    if (!list.length) {
+      box.innerHTML = '<div class="empty"><span class="big">📜</span>还没选职业。<br>' +
+        '<span class="hint">去「车卡」页选职业后，这里会列出你的技能。</span></div>';
+      return;
+    }
+    var rows = list.map(function (s) {
+      var info = DE.skillInfoOf(c, s.name);
+      var src = s.source === "sideJob"
+        ? '<span class="badge red">副业</span>'
+        : '<span class="badge">本职</span>';
+      var act;
+      if (info.hasTool) {
+        act = '<span class="hint">已有专门界面（见上方 / 商店）</span>';
+      } else if (info.rollable) {
+        act = '<button class="sm" data-skill="' + DE.ui.esc(s.name) + '">掷骰判定</button>';
+      } else {
+        act = '<span class="hint">被动技能，无需判定</span>';
+      }
+      return '<tr>' +
+        "<td><b>" + DE.ui.esc(s.name) + "</b>　" + src + "</td>" +
+        "<td>" + DE.ui.esc(s.ability || "—") + "</td>" +
+        "<td>" + DE.ui.esc(s.target || "—") + "</td>" +
+        "<td>" + act + "</td>" +
+        "</tr>" +
+        '<tr><td colspan="4" style="color:#6b5f50;font-size:12.5px;white-space:pre-wrap;border-top:0">' +
+          DE.ui.esc(s.effect || "") + "</td></tr>";
+    }).join("");
+    var sj = DE.sideJobInfo(c);
+    box.innerHTML =
+      (sj.eligible
+        ? '<div class="hint" style="margin-bottom:9px">职业带〈副业〉：' +
+          (sj.has
+            ? '已选 <b>' + DE.ui.esc(sj.skill) + '</b>（判定 <b>' + sj.penalty + '</b>）'
+            : '还没选副业 —— 去「车卡」页的职业卡片里选') + '。</div>'
+        : "") +
+      '<table class="tbl"><thead><tr><th>技能</th><th>使用能力值</th><th>目标值</th><th>操作</th></tr></thead>' +
+      "<tbody>" + rows + "</tbody></table>" +
+      '<div class="hint" style="margin-top:10px">「掷骰判定」用于本工具还没做专门界面的技能：' +
+      "掷【使用能力值】两个骰子 + 修正 ≥ 目标值。目标值按规则书填（地貌 / 主持人决定 / 参照效果表）。</div>";
+
+    DE.ui.$$("[data-skill]", box).forEach(function (b) {
+      b.onclick = function () { openSkillDialog(b.getAttribute("data-skill")); };
+    });
+  }
+
+  /* 通用技能掷骰弹窗 */
+  function openSkillDialog(name) {
+    var info = DE.skillInfoOf(c, name);
+    if (!info.ok) { DE.ui.toast("这个角色没有〈" + name + "〉技能。", "err"); return; }
+    function targetDefault() {
+      var tg = String(info.target || "");
+      if (/^\\d+$/.test(tg)) return tg;
+      return "7";
+    }
+    DE.ui.modal("📜 " + name,
+      '<div class="hint">使用能力值 <b>' + DE.ui.esc(info.ability || "—") + "</b>" +
+        "　目标值 <b>" + DE.ui.esc(info.target || "—") + "</b>" +
+        (info.source === "sideJob" ? '　<span class="badge red">副业判定 ' + info.penalty + "</span>" : "") +
+      "</div>" +
+      '<div style="white-space:pre-wrap;font-size:12.5px;margin-top:7px">' +
+        DE.ui.esc(info.effect || "") + "</div>" +
+      '<label class="fld" style="margin-top:10px"><span>目标值</span>' +
+        '<input type="number" id="skTarget" value="' + targetDefault() + '" min="1" step="1" style="width:90px"></label>' +
+      '<div id="skOut" style="margin-top:10px"></div>',
+      [
+        { label: "掷骰判定", cls: "primary", fn: function (ov) {
+            var el = DE.ui.$("#skTarget", ov);
+            var tg = el ? el.value : targetDefault();
+            var res = DE.skillJudgeByName(c, name, tg);
+            var out = DE.ui.$("#skOut", ov);
+            if (out) {
+              out.innerHTML = res.ok
+                ? '<div class="alert ' + (res.roll.critFail ? "red" : (res.roll.success ? "green" : "gold")) +
+                  '"><span class="ico">' + (res.roll.critFail ? "💀" : (res.roll.bigOk ? "✨" : (res.roll.success ? "✅" : "❌"))) +
+                  '</span><div>' + DE.ui.esc(res.msg) + "</div></div>"
+                : '<div class="alert red"><span class="ico">⚠️</span><div>' + DE.ui.esc(res.msg) + "</div></div>";
+            }
+            renderAll();
+            return false;   /* 不关闭，方便看清点数 */
+          } },
+        { label: "关闭", cls: "ghost" }
+      ]);
+  }
+
+/* ============ 🔨 工坊（修理 / 物品制造） ============ */
+  function craftPenTag(o) {
+    return o.sideJob ? ' <span class="badge red">副业 -1</span>' : "";
+  }
+
+  function renderCraft() {
+    var card = $("#craftCard"), box = $("#craftBox");
+    if (!card || !box) return;
+    var st = (DE.craft ? DE.craft.state(c) : null);
+    if (!st || !st.any) { card.style.display = "none"; return; }
+    card.style.display = "";
+
+    var blocks = [];
+
+    /* ---- 修理 ---- */
+    if (st.repair.ok) {
+      var rep = DE.craft.repairable(c);
+      var rows = rep.length
+        ? rep.map(function (o) {
+            return "<tr>" +
+              "<td><b>" + DE.ui.esc(o.inst.name) + "</b></td>" +
+              "<td>" + o.inst.durability + "/" + o.inst.durabilityMax + "</td>" +
+              "<td>" + o.info.target + "</td>" +
+              "<td>" + o.info.material + " G</td>" +
+              "<td>" + o.info.days + " 天</td>" +
+              '<td><button class="sm" data-repair="' + DE.ui.esc(o.inst.instId) + '">修理…</button></td>' +
+              "</tr>";
+          }).join("")
+        : "";
+      blocks.push(
+        "<div>" +
+          "<h3>🔧 修理" + craftPenTag(st.repair) + "</h3>" +
+          '<div class="hint">判定 <b>体力+敏捷</b> ≥ 表 1（按道具定价）。' +
+            "材料费 = 价格 <b>10%</b>，<b>不管成败都要付</b>；重试要再付一次。<br>" +
+            "耗时 = 道具尺寸 × 1 天。与道具种类无关，任何道具都能修。</div>" +
+          (rep.length
+            ? '<table class="tbl" style="margin-top:8px"><thead><tr><th>道具</th><th>耐久</th>' +
+              "<th>目标</th><th>材料费</th><th>耗时</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>"
+            : '<div class="hint" style="margin-top:8px">没有需要修理的道具（耐久都是满的）。</div>') +
+        "</div>");
+    }
+
+    /* ---- 物品制造 ---- */
+    if (st.craft.ok) {
+      var cats = st.cats || [];
+      var catLabels = cats.map(function (k) {
+        var cc = DE.CATEGORIES[k];
+        return (cc ? (cc.icon + " " + cc.label) : k);
+      }).join("、");
+      var cands = st.candidates || [];
+      var opts = cands.map(function (it) {
+        var cc = DE.CATEGORIES[it.cat] || {};
+        return '<option value="' + DE.ui.esc(it.id) + '">' +
+          DE.ui.esc((cc.icon || "") + " " + it.name + "（" + it.price + " G）") + "</option>";
+      }).join("");
+      var pend = st.pending
+        ? '<div class="alert gold" style="margin-top:8px"><span class="ico">🔁</span><div>' +
+          "上次没做出来的〈<b>" + DE.ui.esc(st.pending.name) + "</b>〉：重试<b>不再收材料费</b>，只花时间。" +
+          '<div class="btnrow" style="margin-top:6px">' +
+            '<button class="sm" id="btnCraftRetry">继续重试</button>' +
+            '<button class="sm ghost" id="btnCraftDrop">放弃这次</button>' +
+          "</div></div></div>"
+        : "";
+      blocks.push(
+        "<div>" +
+          "<h3>🛠️ 物品制造" + craftPenTag(st.craft) + "</h3>" +
+          '<div class="hint">判定 <b>体力+敏捷</b> ≥ 表 1（按道具定价）。' +
+            "材料费 = 价格 <b>一半</b>；耗时 = 道具尺寸 × 1 天。<br>" +
+            "只能做「选择职业时决定的道具种类」；重试不花材料费、只花时间。</div>" +
+          (cats.length
+            ? '<div class="hint" style="margin-top:6px">你的种类：<b>' + DE.ui.esc(catLabels) + "</b></div>"
+            : '<div class="alert red" style="margin-top:8px"><span class="ico">⚠️</span><div>' +
+              "还没选「可制作的道具种类」—— 去 <b>车卡页 → 职业</b> 里选。</div></div>") +
+          (cats.length
+            ? '<label class="fld" style="margin-top:9px"><span>要做的道具</span>' +
+              '<select id="craftPick">' + (opts || '<option value="">（没有可选的道具）</option>') + "</select></label>" +
+              '<div id="craftInfoLine" class="hint" style="margin-top:6px"></div>' +
+              '<div class="btnrow"><button class="sm primary" id="btnCraftMake"' +
+                (cands.length ? "" : " disabled") + ">制造…</button></div>"
+            : "") +
+          pend +
+        "</div>");
+    }
+
+    /* ---- 工坊记录（独立于金币账本） ---- */
+    var log = (st.log || []).slice();
+    log.reverse();                                  /* 最新在前 */
+    var SHOW = 30;
+    var shown = log.slice(0, SHOW);
+
+    function fmtAt(e) {
+      var s = String(e.at || "");
+      var md = s.slice(5, 16).replace("T", " ");
+      return "第 " + (e.day || 1) + " 天" + (md ? " · " + md : "");
+    }
+    function diceTxt(e) {
+      if (!e.rolled || !e.rolled.length) return "—";
+      var dd = e.dice || [];
+      var parts = e.rolled.map(function (v, i) {
+        return (dd[i] ? "d" + dd[i] + "(" + v + ")" : String(v));
+      });
+      return parts.join(" + ") +
+        (e.mod ? (e.mod > 0 ? " + " + e.mod : " " + e.mod) : "") +
+        " = <b>" + e.total + "</b> vs " + e.target;
+    }
+    var logRows = shown.map(function (e) {
+      var isRep = e.kind === "repair";
+      var icon = isRep ? "🔧" : "🛠️";
+      var kindTxt = isRep ? "修理" : "制造";
+      var dd = e.dice || [];
+      var diceTxt = (e.rolled || []).map(function (v, i) {
+        return (dd[i] ? "d" + dd[i] + "(" + v + ")" : String(v));
+      }).join("+") + (e.mod ? (e.mod > 0 ? "+" + e.mod : e.mod) : "");
+      var cost = e.costFree ? "0 G" : (e.material + " G");
+      var full = (e.detail || "") + (e.timeLabel ? "　" + e.timeLabel : "");
+      return "<tr>" +
+        '<td class="sub mono">第 ' + (e.day || 1) + " 天<br>" +
+          DE.ui.esc(shortDate(e.at)) + "</td>" +
+        '<td><span class="nm">' + icon + " " + DE.ui.esc(e.name) + "</span>" +
+          (e.sideJob ? ' <span class="badge red">副业</span>' : "") +
+          '<div class="sub">' + kindTxt + "</div></td>" +
+        '<td class="mid"><b>' + (e.total == null ? "—" : e.total) + "</b>" +
+          '<span class="sub"> / ' + (e.target == null ? "—" : e.target) + "</span>" +
+          '<div class="sub mono">' + DE.ui.esc(diceTxt || "—") + "</div></td>" +
+        '<td class="sub mono">' + DE.ui.esc(cost) +
+          '<div class="sub">' + (e.days || 0) + " 天</div></td>" +
+        "<td" + (e.success ? "" : ' class="warn"') + ">" +
+          '<span class="ellip" title="' + DE.ui.esc(full) + '">' +
+            (e.success ? "✅ " : "❌ ") + DE.ui.esc(e.detail || "") + "</span>" +
+          (e.timeLabel ? '<div class="sub">' + DE.ui.esc(e.timeLabel) + "</div>" : "") +
+        "</td></tr>";
+    }).join("");
+
+    var logSection = '<div class="craftlog" style="margin-top:16px;padding-top:13px;border-top:1px dashed var(--line)">' +
+      '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">' +
+        '<h3 style="margin:0">📜 工坊记录</h3>' +
+        '<span class="hint">共 <b>' + log.length + "</b> 条 · 只记修理/制造，不进金币账本</span>" +
+        '<span style="margin-left:auto"></span>' +
+        (log.length ? '<button class="sm ghost" id="btnClearCraftLog">清空记录</button>' : "") +
+      "</div>" +
+      (log.length
+        ? '<table class="tbl cmp" style="margin-top:8px"><thead><tr><th style="width:96px">时间</th>' +
+          '<th>道具</th><th style="width:120px">判定</th><th style="width:72px">花费</th><th>结果</th>' +
+          "</tr></thead><tbody>" + logRows + "</tbody></table>" +
+          (log.length > SHOW ? '<div class="hint" style="margin-top:6px">只显示最近 ' + SHOW + " 条（共 " + log.length + " 条）。</div>" : "")
+        : '<div class="hint" style="margin-top:8px">还没有修理 / 制造记录。做一次就会记在这里。</div>') +
+      "</div>";
+
+    /* 修理 / 制造上下堆叠：两张表列多，并排会被压窄 */
+    box.innerHTML = '<div class="craftblocks">' + blocks.join("") + "</div>" + logSection;
+
+    var bcl = $("#btnClearCraftLog");
+    if (bcl) bcl.onclick = function () {
+      var r = DE.craft.clearLog(c);
+      DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+      renderAll();
+    };
+
+    DE.ui.$$("[data-repair]", box).forEach(function (b) {
+      b.onclick = function () { openRepairDialog(b.getAttribute("data-repair")); };
+    });
+    var pick = $("#craftPick");
+    if (pick) {
+      pick.onchange = drawCraftInfo;
+      drawCraftInfo();
+    }
+    var bm = $("#btnCraftMake");
+    if (bm) bm.onclick = function () { openCraftDialog($("#craftPick").value); };
+    var br = $("#btnCraftRetry");
+    if (br) br.onclick = function () { openCraftDialog(st.pending.itemId); };
+    var bd = $("#btnCraftDrop");
+    if (bd) bd.onclick = function () {
+      var r = DE.craft.clearPending(c);
+      DE.ui.toast(r.msg, r.ok ? "ok" : "err");
+      renderAll();
+    };
+  }
+
+  /* 制造下拉框旁的信息行 */
+  function drawCraftInfo() {
+    var pick = $("#craftPick"), line = $("#craftInfoLine");
+    if (!pick || !line) return;
+    var info = DE.craft.craftInfo(c, pick.value);
+    if (!info.ok) { line.innerHTML = DE.ui.esc(info.msg); return; }
+    line.innerHTML = "定价 <b>" + info.price + " G</b>　目标值 <b>" + info.target +
+      "</b>　材料费 <b>" + (info.isRetry ? "0 G（上一次已付）" : info.material + " G") +
+      "</b>　耗时 <b>" + info.days + " 天</b>";
+  }
+
+  /* ---- 修理弹窗 ---- */
+  function openRepairDialog(instId) {
+    var inst = DE.findInstance(c, instId);
+    var info = DE.craft.repairInfo(c, inst);
+    if (!info.ok) { DE.ui.toast(info.msg, "err"); return; }
+    DE.ui.modal("🔧 修理〈" + DE.ui.esc(inst.name) + "〉",
+      '<div class="hint">耐久 <b>' + info.durability + "/" + info.durabilityMax + "</b>" +
+        "　定价 <b>" + info.price + " G</b></div>" +
+      '<div class="statrow" style="margin:9px 0">' +
+        '<span class="chip">目标值 <b>' + info.target + "</b></span>" +
+        '<span class="chip">材料费 <b>' + info.material + " G</b></span>" +
+        '<span class="chip">耗时 <b>' + info.days + " 天</b></span>" +
+      "</div>" +
+      '<div class="hint">判定 <b>体力+敏捷</b>。材料费<b>不管成败都要付</b>；失败可以再修一次（材料费再付一次）。</div>' +
+      '<label class="inline hint" style="margin-top:10px;display:block">' +
+        '<input type="checkbox" id="repAdvance" checked> 完成后推进 ' + info.days + " 天游戏时间" +
+        "（会结算食物与水的消耗）</label>" +
+      '<div id="repOut" style="margin-top:10px"></div>',
+      [
+        { label: "开始修理", cls: "primary", fn: function (ov) {
+            var ad = DE.ui.$("#repAdvance", ov);
+            var r = DE.craft.doRepair(c, instId, { advance: !ad || ad.checked });
+            var out = DE.ui.$("#repOut", ov);
+            if (out) out.innerHTML = '<div class="alert ' + (r.ok ? (r.success ? "green" : "gold") : "red") +
+              '"><span class="ico">' + (r.ok ? (r.success ? "✅" : "❌") : "⚠️") + '</span><div>' +
+              DE.ui.esc(r.msg) + "</div></div>";
+            renderAll();
+            if (!r.ok) DE.ui.toast(r.msg, "err");
+            return false;   /* 不关闭，方便看结果 */
+          } },
+        { label: "关闭", cls: "ghost" }
+      ]);
+  }
+
+  /* ---- 制造弹窗 ---- */
+  function openCraftDialog(itemId) {
+    if (!itemId) { DE.ui.toast("先选一个道具。", "err"); return; }
+    var info = DE.craft.craftInfo(c, itemId);
+    if (!info.ok) { DE.ui.toast(info.msg, "err"); return; }
+    DE.ui.modal("🛠️ 物品制造〈" + DE.ui.esc(info.def.name) + "〉",
+      '<div class="hint">定价 <b>' + info.price + " G</b>　尺寸 <b>" + (info.def.size || 1) + "</b>" +
+        (info.isRetry ? '　<span class="badge teal">重试 · 免材料费</span>' : "") + "</div>" +
+      '<div class="statrow" style="margin:9px 0">' +
+        '<span class="chip">目标值 <b>' + info.target + "</b></span>" +
+        '<span class="chip">材料费 <b>' + (info.isRetry ? "0 G" : info.material + " G") + "</b></span>" +
+        '<span class="chip">耗时 <b>' + info.days + " 天</b></span>" +
+      "</div>" +
+      '<div class="hint">判定 <b>体力+敏捷</b>。失败的话材料已投入 —— 重试只花时间、不再收材料费。</div>' +
+      '<label class="inline hint" style="margin-top:10px;display:block">' +
+        '<input type="checkbox" id="crfAdvance" checked> 完成后推进 ' + info.days + " 天游戏时间" +
+        "（会结算食物与水的消耗）</label>" +
+      '<div id="crfOut" style="margin-top:10px"></div>',
+      [
+        { label: "开始制造", cls: "primary", fn: function (ov) {
+            var ad = DE.ui.$("#crfAdvance", ov);
+            var r = DE.craft.doCraft(c, itemId, { advance: !ad || ad.checked });
+            var out = DE.ui.$("#crfOut", ov);
+            if (out) out.innerHTML = '<div class="alert ' + (r.ok ? (r.success ? "green" : "gold") : "red") +
+              '"><span class="ico">' + (r.ok ? (r.success ? "✅" : "❌") : "⚠️") + '</span><div>' +
+              DE.ui.esc(r.msg) + "</div></div>";
+            renderAll();
+            if (!r.ok) DE.ui.toast(r.msg, "err");
+            return false;
+          } },
+        { label: "关闭", cls: "ghost" }
+      ]);
+  }
+
   function renderAll() {
     var cb = $("#clockScaleBadge");
     if (cb) cb.textContent = "游戏时间 " + DE.clock.label();
     renderCarry(); renderSupply(); renderExpiry(); renderEquip(); renderContainers();
     renderAnimals(); renderLoose();
+    renderBuffs();
+    renderApothecary();
+    renderSkills();
+    renderCraft();
     renderList();
     DE.ui.expiryBanner($("#expiryBanner"));
   }

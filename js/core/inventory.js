@@ -353,6 +353,15 @@ DE.expiryAlerts = function (c) {
   };
 };
 
+/* 更短的剩余时间（表格里用，完整版见 fmtRemain） */
+DE.fmtRemainBrief = function (ms) {
+  if (ms <= 0) return "已腐坏";
+  var h = ms / 3600000;
+  if (h >= 24) return Math.floor(h / 24) + " 天";
+  if (h >= 1) return Math.floor(h) + " 小时";
+  return Math.max(1, Math.floor(ms / 60000)) + " 分";
+};
+
 DE.fmtRemain = function (ms) {
   if (ms <= 0) return "已腐坏";
   var h = ms / 3600000;
@@ -1269,12 +1278,18 @@ DE.rollJudge = function (c, opts) {
   var sum = rolled[0] + rolled[1];
 
   var pen = DE.judgmentPenalty(c, type.id);
+  var bonus = DE.judgmentBonus(c, type.id);       /* 药草带来的加值 / 固定结果 */
   var extra = Number(opts.mod) || 0;
-  var mod = pen.value + extra;
+  var mod = pen.value + bonus.value + extra;
   var total = sum + mod;
+  /* 王冠喇叭花：本次【状态判定】结果直接固定 */
+  if (bonus.fixed != null) total = bonus.fixed;
 
   var target = Number(opts.target);
   if (isNaN(target)) target = 7;
+
+  /* 用完就消耗掉一次性药草增益（statusJudge / statusFix / sprJudge） */
+  if (c) { try { DE.buffConsumeAfterJudge(c, type.id); DE.save(c); } catch (e) {} }
 
   var critFail = (rolled[0] === 1 && rolled[1] === 1);
   var bigOk = (rolled[0] === dice[0] && rolled[1] === dice[1]) ||
@@ -1282,7 +1297,9 @@ DE.rollJudge = function (c, opts) {
   return {
     type: type, typeId: type.id, typeName: type.name,
     ab: ab, dice: dice, rolled: rolled, sum: sum,
-    penalty: pen.value, parts: pen.parts, extraMod: extra, mod: mod,
+    penalty: pen.value, parts: pen.parts,
+    bonus: bonus.value, bonusParts: bonus.parts, fixedTotal: bonus.fixed,
+    extraMod: extra, mod: mod,
     total: total, target: target,
     success: total >= target,
     critFail: critFail, bigOk: bigOk,
@@ -1490,3 +1507,916 @@ DE.applyJudgeEffect = function (c, judge) {
   if (eff.note) msgs.push(eff.note);
   return { ok: true, msgs: msgs, preview: pv };
 };
+
+
+/* ============================================================
+ *  药草效果 × 角色属性联动
+ *  ------------------------------------------------------------
+ *  规则依据：规则书 p52（药草）＋ 角色卡「技能表」（药师：治疗 / 应急处理 / 药草采摘）
+ *
+ *  每种药草在 items.js 里带一个 apply 字段，形如：
+ *    { heal: 2 }                                          立刻回复 HP
+ *    { cureSystem: "身体系", statusJudgeBonus: 1 }         解除异常状态 + 立即状态判定加值
+ *    { buff: { kind, value, scope, label } }               施加临时增益
+ *
+ *  临时增益 c.buffs 的作用范围（scope）：
+ *    next       下一次对应判定后自动消耗
+ *    nextMagic  下一次魔法后自动消耗（目前由 UI 提示，手动清除）
+ *    day        跨天自动失效
+ *    scene      场景内有效，手动清除
+ * ============================================================ */
+
+/* 异常状态属于身体系还是精神系（按 DE.STATUSES 的分组判断，不依赖 st.type） */
+DE.statusSystemOf = function (name) {
+  var P = (DE.STATUSES && DE.STATUSES.physical) || [];
+  var M = (DE.STATUSES && DE.STATUSES.mental) || [];
+  var i;
+  for (i = 0; i < P.length; i++) { if (P[i].name === name) return "身体系"; }
+  for (i = 0; i < M.length; i++) { if (M[i].name === name) return "精神系"; }
+  return null;
+};
+
+/* 当前所有临时增益 */
+DE.buffList = function (c) { return (c && c.buffs) || []; };
+
+/* 加一条增益 */
+DE.buffAdd = function (c, herbDef, spec) {
+  c.buffs = c.buffs || [];
+  var b = {
+    id: DE.uid("bf"),
+    herbId: herbDef ? herbDef.id : "",
+    herbName: herbDef ? herbDef.name : "",
+    kind: spec.kind,
+    value: spec.value,
+    factor: spec.factor,
+    hours: spec.hours,
+    scope: spec.scope || "scene",
+    label: spec.label || "",
+    day: DE.clock ? DE.clock.dayNumber() : 1,
+    addedISO: DE.gameISO ? DE.gameISO() : new Date().toISOString()
+  };
+  c.buffs.push(b);
+  return b;
+};
+
+/* 移除一条增益 */
+DE.buffRemove = function (c, id) {
+  if (!c || !c.buffs) return false;
+  var before = c.buffs.length;
+  c.buffs = c.buffs.filter(function (b) { return b.id !== id; });
+  return c.buffs.length !== before;
+};
+
+/* 跨天清理 day 范围增益。返回被清掉的列表。 */
+DE.expireBuffs = function (c) {
+  if (!c || !c.buffs || !c.buffs.length) return [];
+  var day = DE.clock ? DE.clock.dayNumber() : 1;
+  var gone = [], keep = [];
+  c.buffs.forEach(function (b) {
+    if (b.scope === "day" && b.day !== day) gone.push(b);
+    else keep.push(b);
+  });
+  if (gone.length) c.buffs = keep;
+  return gone;
+};
+
+/* 手动/自动消耗某些种类的增益 */
+DE.buffConsume = function (c, kinds) {
+  if (!c || !c.buffs || !c.buffs.length) return [];
+  var want = [].concat(kinds), gone = [], keep = [];
+  c.buffs.forEach(function (b) {
+    if (want.indexOf(b.kind) >= 0) gone.push(b);
+    else keep.push(b);
+  });
+  if (gone.length) c.buffs = keep;
+  return gone;
+};
+
+/* 判定时把「药草增益」算进来。
+   返回 { value, parts, fixed } —— fixed 表示结果被固定成某个值（王冠喇叭花）。 */
+DE.judgmentBonus = function (c, typeId, abKeys) {
+  var parts = [], value = 0, fixed = null;
+  if (!c) return { value: 0, parts: parts, fixed: null };
+  var type = (DE.JUDGE_TYPES || []).filter(function (x) { return x.id === typeId; })[0];
+  /* abKeys 用于技能判定（治疗 = 智力+精神），不传则按判定类型的固定组合 */
+  var keys = abKeys || (type && type.ab) || [];
+  var usesSpr = keys.indexOf("spr") >= 0;
+
+  (c.buffs || []).forEach(function (b) {
+    if (b.kind === "statusFix") {
+      if (typeId !== "status") return;
+      fixed = parseInt(b.value, 10) || 6;
+      parts.push({ src: "〈" + b.herbName + "〉", v: 0,
+        note: "本日【状态判定】结果固定为 " + fixed });
+    } else if (b.kind === "statusJudge") {
+      if (typeId !== "status") return;
+      var v1 = parseInt(b.value, 10) || 0;
+      value += v1;
+      parts.push({ src: "〈" + b.herbName + "〉", v: v1, note: b.label || "药草：状态判定加值" });
+    } else if (b.kind === "sprJudge") {
+      if (!usesSpr) return;
+      var v2 = parseInt(b.value, 10) || 0;
+      value += v2;
+      parts.push({ src: "〈" + b.herbName + "〉", v: v2, note: b.label || "药草：精神判定加值" });
+    }
+  });
+  return { value: value, parts: parts, fixed: fixed };
+};
+
+/* 判定用完后消耗掉一次性增益（next 范围）。
+   注意：fixed 也要消耗 —— 「第二天的状态判定」只用一次。 */
+DE.buffConsumeAfterJudge = function (c, typeId) {
+  var gone = [];
+  if (!c) return gone;
+  var type = (DE.JUDGE_TYPES || []).filter(function (x) { return x.id === typeId; })[0];
+  var usesSpr = !!(type && type.ab && type.ab.indexOf("spr") >= 0);
+  var kinds = [];
+  if (typeId === "status") kinds.push("statusJudge", "statusFix");
+  if (usesSpr) kinds.push("sprJudge");
+  if (kinds.length) gone = DE.buffConsume(c, kinds);
+  return gone;
+};
+
+/* MP 消耗换算（月下的雪割草）：消耗 >1 点的行为 -1，只耗 1 点的不变 */
+DE.mpCostOf = function (c, base) {
+  var n = parseInt(base, 10);
+  if (isNaN(n) || n <= 0) return 0;
+  if (n <= 1) return n;                     /* 对只需 1 点的行为无效 */
+  var down = 0;
+  (c && c.buffs || []).forEach(function (b) {
+    if (b.kind === "mpCostDown") down += (parseInt(b.value, 10) || 0);
+  });
+  return Math.max(1, n - down);
+};
+
+/* 药草在 UI 上的效果摘要（含过期状态） */
+DE.herbPreview = function (c, inst) {
+  var def = DE.instDef(inst);
+  if (!def) return null;
+  var life = DE.shelfLife(c, inst);
+  var ap = def.apply || {};
+  var tags = [];
+  if (ap.heal) tags.push("回复 " + ap.heal + " HP");
+  if (ap.cureSystem) tags.push("解除" + ap.cureSystem + "异常状态");
+  if (ap.statusJudgeBonus) tags.push("状态判定 +" + ap.statusJudgeBonus);
+  if (ap.buff && ap.buff.label) tags.push(ap.buff.label);
+  return {
+    def: def, life: life,
+    expired: !!(life && life.expired),
+    system: def.system || "",
+    tags: tags,
+    canUse: !(life && life.expired)
+  };
+};
+
+/* 使用一个药草：把效果真正作用到角色身上 */
+DE.useHerb = function (c, instId) {
+  var inst = DE.findInstance(c, instId);
+  if (!inst) return { ok: false, msg: "找不到该药草。" };
+  if (inst.kind !== "herb") {
+    return { ok: false, msg: "〈" + inst.name + "〉不是药草。" };
+  }
+  var def = DE.instDef(inst);
+  if (!def) return { ok: false, msg: "药草数据缺失。" };
+
+  var life = DE.shelfLife(c, inst);
+  if (life && life.expired) {
+    return { ok: false, msg: "〈" + inst.name + "〉已经腐坏，不能使用。" };
+  }
+
+  var ap = def.apply || {};
+  var msgs = [], cured = [], added = [];
+  var hpFrom = null, hpTo = null;
+
+  /* ① 回复 HP */
+  if (ap.heal) {
+    hpFrom = DE.hpNow(c);
+    var mx = DE.hpMaxOf(c);
+    DE.setHP(c, Math.min(mx, hpFrom + ap.heal));
+    hpTo = DE.hpNow(c);
+    if (hpTo > hpFrom) {
+      msgs.push("HP " + hpFrom + " → " + hpTo + "（+" + (hpTo - hpFrom) + "／上限 " + mx + "）");
+    } else {
+      msgs.push("HP 已满（" + hpFrom + "／" + mx + "），没有变化（药草仍被消耗）");
+    }
+  }
+
+  /* ② 解除异常状态 */
+  if (ap.cureSystem) {
+    var keep = [];
+    (c.statuses || []).forEach(function (st) {
+      if (DE.statusSystemOf(st.name) === ap.cureSystem) cured.push(st.name);
+      else keep.push(st);
+    });
+    if (cured.length) {
+      c.statuses = keep;
+      msgs.push("解除" + ap.cureSystem + "异常状态：" + cured.join("、"));
+    } else {
+      msgs.push("当前没有" + ap.cureSystem + "异常状态可以解除");
+    }
+  }
+
+  /* ③ 使用后立即进行状态判定（+1） */
+  if (ap.statusJudgeBonus) {
+    var b0 = DE.buffAdd(c, def, {
+      kind: "statusJudge", value: ap.statusJudgeBonus, scope: "next",
+      label: "立即进行【状态判定】时 +" + ap.statusJudgeBonus
+    });
+    added.push(b0);
+    msgs.push("立即进行一次【状态判定】，本次结果 +" + ap.statusJudgeBonus + "（已记入增益）");
+  }
+
+  /* ④ 通用临时增益 */
+  if (ap.buff) {
+    var b1 = DE.buffAdd(c, def, ap.buff);
+    added.push(b1);
+    msgs.push("获得增益：" + b1.label);
+  }
+
+  /* ⑤ 消耗 1 个 */
+  DE.consume(c, instId, 1);
+  try { DE.save(c); } catch (e) {}
+
+  return {
+    ok: true, msg: msgs.join("　"), msgs: msgs,
+    cured: cured, buffs: added, hp: { from: hpFrom, to: hpTo }
+  };
+};
+
+
+/* ============================================================
+ *  药师技能（DE.apothecary）
+ *  规则依据：规则书「技能表」—— 治疗 / 应急处理 / 药草采摘
+ *
+ *   治疗     智力+精神   消耗 1 个药草 + 1 天份的水，回复【判定】点 HP
+ *                        战斗中改为【智力判定（一个骰子）】的结果点数
+ *   应急处理 智力+精神   异常状态无效化 1 小时，数值永久 -药师等级
+ *   药草采摘 体力+智力   早晨【移动判定】前，1 天最多 1 次
+ *                        成功获得 1 个药草；大成功 3 个；大失败【中毒：6】
+ * ============================================================ */
+
+/* 异常状态是否处于「应急处理」造成的无效化中（按游戏时间算 1 小时） */
+DE.statusNullified = function (st) {
+  if (!st || !st.nullUntil) return false;
+  try {
+    var until = new Date(st.nullUntil).getTime();
+    if (isNaN(until)) return false;
+    return DE.clock.now().getTime() < until;
+  } catch (e) { return false; }
+};
+
+/* 喝掉 n 天份的水（治疗等技能用）。水不够就整体不消耗。 */
+DE.consumeWaterDays = function (c, n) {
+  n = Math.max(1, parseInt(n, 10) || 1);
+  var have = DE.waterDaysOf(c);
+  if (have < n) {
+    return { ok: false, msg: "水不够：需要 " + n + " 天份，现有 " + have + " 天份。" };
+  }
+  var used = [];
+  for (var i = 0; i < n; i++) {
+    var r = drinkOneDay(c);
+    if (!r) break;
+    used.push(r.name);
+  }
+  return { ok: true, used: used, msg: "消耗 " + used.length + " 天份的水" };
+};
+
+/* 技能判定：能力值由调用方指定（不走 JUDGE_TYPES 的固定组合）。
+   与 rollJudge 的区别：不消耗状态判定的药草增益，但会算「精神判定」类增益。 */
+DE.skillJudge = function (c, abKeys, target, extraMod) {
+  var abEff = (DE.effAbilities ? DE.effAbilities(c).abilities : (c && c.abilities)) || {};
+  var dice = abKeys.map(function (k) { return Math.max(4, abEff[k] || 4); });
+  var rolled = dice.map(function (d) {
+    return Math.min(d, Math.max(1, Math.floor(Math.random() * d) + 1));
+  });
+  var sum = rolled[0] + rolled[1];
+  var pen = DE.judgmentPenalty(c, "skill");
+  var bonus = DE.judgmentBonus ? DE.judgmentBonus(c, "skill", abKeys) : { value: 0, parts: [] };
+  /* extraMod：〈副业〉选的技能判定 -1 就靠这个传进来 */
+  var ex = Number(extraMod) || 0;
+  var mod = pen.value + bonus.value + ex;
+  var total = sum + mod;
+  var tgt = parseInt(target, 10);
+  if (isNaN(tgt)) tgt = 7;
+  var critFail = (rolled[0] === 1 && rolled[1] === 1);
+  var bigOk = (rolled[0] === dice[0] && rolled[1] === dice[1]) ||
+              (rolled[0] === 6 && rolled[1] === 6);
+  return {
+    dice: dice, rolled: rolled, sum: sum,
+    penalty: pen.value, penParts: pen.parts,
+    bonus: bonus.value, bonusParts: bonus.parts, extraMod: ex,
+    mod: mod, total: total, target: tgt,
+    success: total >= tgt, critFail: critFail, bigOk: bigOk,
+    label: critFail ? "大失败" : (bigOk ? "大成功" : (total >= tgt ? "成功" : "失败"))
+  };
+};
+
+/* ============================================================
+ *  〈副业〉—— 农民专属：选 1 项其他职业技能，判定 -1
+ * ============================================================ */
+
+/* 副业状态：{ eligible, skills, skill, penalty, has } */
+DE.sideJobInfo = function (c) {
+  var conf = DE.SIDE_JOB || {};
+  var list = conf.skills || [];
+  var prof = (DE.PROFESSIONS || []).filter(function (p) { return p.id === (c && c.profession); })[0];
+  var eligible = !!(prof && (prof.skills || []).indexOf(conf.skill || "副业") >= 0);
+  var cur = (c && c.sideJob) || "";
+  /* 职业没有〈副业〉、或选的值不在清单里 → 一律视为没选
+     （换职业后残留的 sideJob 不能继续生效） */
+  if (!eligible || list.indexOf(cur) < 0) cur = "";
+  return {
+    eligible: eligible,
+    skills: list,
+    skill: cur,
+    penalty: (conf.penalty == null ? -1 : conf.penalty),
+    has: !!cur,
+    note: conf.note || ""
+  };
+};
+
+/* 能不能用某个技能：本职技能（无减值）或副业选的那一项（有减值） */
+DE.canUseSkill = function (c, skillName) {
+  var prof = (DE.PROFESSIONS || []).filter(function (p) { return p.id === (c && c.profession); })[0];
+  if (prof && (prof.skills || []).indexOf(skillName) >= 0) {
+    return { ok: true, source: "profession", penalty: 0 };
+  }
+  var sj = DE.sideJobInfo(c);
+  if (sj.has && sj.skill === skillName) {
+    return { ok: true, source: "sideJob", penalty: sj.penalty };
+  }
+  return { ok: false, source: null, penalty: 0 };
+};
+
+/* 用某个技能时的额外修正（副业 → -1；本职 → 0） */
+DE.skillPenaltyOf = function (c, skillName) {
+  var u = DE.canUseSkill(c, skillName);
+  return u.ok ? u.penalty : 0;
+};
+
+/* 角色拥有的全部技能（本职 3 个 + 副业 1 个），带判定信息 */
+DE.skillListOf = function (c) {
+  var out = [];
+  var prof = (DE.PROFESSIONS || []).filter(function (p) { return p.id === (c && c.profession); })[0];
+  function push(name, source, penalty) {
+    var d = (DE.PROFESSION_SKILLS || {})[name] || { ability: "—", target: "—", effect: "" };
+    out.push({ name: name, ability: d.ability, target: d.target, effect: d.effect,
+               source: source, penalty: penalty });
+  }
+  if (prof) (prof.skills || []).forEach(function (n) { push(n, "profession", 0); });
+  var sj = DE.sideJobInfo(c);
+  if (sj.has) push(sj.skill, "sideJob", sj.penalty);
+  return out;
+};
+
+DE.apothecary = (function () {
+
+  /* 有没有药师系技能（药师本人，或〈副业〉选了其中一项的农民） */
+  function is(c) {
+    return !!(c && (DE.canUseSkill(c, "治疗").ok ||
+                    DE.canUseSkill(c, "应急处理").ok ||
+                    DE.canUseSkill(c, "药草采摘").ok));
+  }
+
+  /* 可用的药草（未腐坏） */
+  function usableHerbs(c) {
+    return ((c && c.inventory) || []).filter(function (x) {
+      if (x.kind !== "herb") return false;
+      var lf = DE.shelfLife(c, x);
+      return !(lf && lf.expired);
+    });
+  }
+
+  /* ---------- 治疗 ---------- */
+  /* opts: { instId, inCombat } */
+  function heal(c, opts) {
+    opts = opts || {};
+    var use = DE.canUseSkill(c, "治疗");
+    if (!use.ok) return { ok: false, msg: "这个角色没有【治疗】技能（药师自带，或〈副业〉选它）。" };
+    var sideTxt = (use.source === "sideJob") ? "　〈副业〉判定 " + use.penalty + " 已计入。" : "";
+    var inst = DE.findInstance(c, opts.instId);
+    if (!inst || inst.kind !== "herb") return { ok: false, msg: "请先选择一个药草。" };
+    var lf = DE.shelfLife(c, inst);
+    if (lf && lf.expired) return { ok: false, msg: "〈" + inst.name + "〉已经腐坏，不能使用。" };
+    if (DE.waterDaysOf(c) < 1) return { ok: false, msg: "水不够：【治疗】需要 1 天份的水。" };
+
+    var bits, total;
+    if (opts.inCombat) {
+      /* 战斗中：HP 恢复点数 = 【智力判定（一个骰子）】的结果点数 */
+      var abEff = DE.effAbilities(c).abilities;
+      var face = Math.max(4, abEff.int || 4);
+      var die = Math.min(face, Math.max(1, Math.floor(Math.random() * face) + 1));
+      var pen = DE.judgmentPenalty(c, "skill");
+      var cmod = pen.value + use.penalty;
+      total = Math.max(1, die + cmod);
+      bits = "战斗中·智力单骰 d" + face + "(" + die + ")" +
+             (cmod ? " 判定修正 " + (cmod > 0 ? "+" + cmod : cmod) : "") + " → " + total + " 点";
+    } else {
+      var r = DE.skillJudge(c, ["int", "spr"], 0, use.penalty);
+      total = Math.max(1, r.total);
+      bits = "d" + r.dice[0] + "(" + r.rolled[0] + ") + d" + r.dice[1] + "(" + r.rolled[1] +
+             ") = " + r.sum + "，" + (r.mod ? "修正 " + (r.mod > 0 ? "+" + r.mod : r.mod) + " " : "") +
+             "合计 " + r.total + " 点";
+      /* 用掉了「精神判定」类一次性增益 */
+      DE.buffConsume(c, ["sprJudge"]);
+    }
+
+    var from = DE.hpNow(c), mx = DE.hpMaxOf(c);
+    DE.setHP(c, Math.min(mx, from + total));
+    var healed = DE.hpNow(c) - from;
+
+    DE.consume(c, inst.instId, 1);
+    DE.consumeWaterDays(c, 1);
+    DE.save(c);
+    return {
+      ok: true, healed: healed, total: total, detail: bits,
+      from: from, to: DE.hpNow(c), hpMax: mx,
+      msg: "【治疗】" + bits + "，HP " + from + " → " + DE.hpNow(c) +
+           "（回复 " + healed + " 点）。消耗〈" + inst.name + "〉+ 1 天份的水。" + sideTxt
+    };
+  }
+
+  /* ---------- 应急处理 ---------- */
+  /* 使目标受到的异常状态无效化 1 小时，且该异常状态数值永久 -药师等级 */
+  function firstAid(c, statusName) {
+    var use = DE.canUseSkill(c, "应急处理");
+    if (!use.ok) return { ok: false, msg: "这个角色没有【应急处理】技能（药师自带，或〈副业〉选它）。" };
+    var list = c.statuses || [];
+    var st = list.filter(function (x) { return x.name === statusName; })[0];
+    if (!st) return { ok: false, msg: "没有〈" + statusName + "〉这个异常状态。" };
+    if (st.emergencyISO) {
+      return { ok: false, msg: "〈" + statusName + "〉已经接受过应急处理了（同一次异常只能处理一次）。" };
+    }
+
+    /* 规则书技能表：使用能力值 = 智力+精神，目标值 = 【异常状态】数值 */
+    var oldValue = parseInt(st.value, 10) || 0;
+    var r = DE.skillJudge(c, ["int", "spr"], oldValue, use.penalty);
+    var sideTxt = (use.source === "sideJob") ? "　〈副业〉判定 " + use.penalty + " 已计入。" : "";
+    var det = "判定 " + r.rolled[0] + " + " + r.rolled[1] +
+              (r.mod ? " 修正 " + (r.mod > 0 ? "+" + r.mod : r.mod) : "") +
+              " = " + r.total + " vs 目标 " + oldValue;
+
+    if (!r.success) {
+      DE.save(c);
+      return {
+        ok: true, success: false, roll: r, statusName: statusName,
+        msg: "【应急处理】" + r.label + "：" + det + "，这次没有成功（可以再试）。" + sideTxt
+      };
+    }
+
+    var lv = Math.max(1, parseInt(c.level, 10) || 1);
+    st.nullUntil = new Date(DE.clock.now().getTime() + 3600000).toISOString();
+    st.value = Math.max(0, oldValue - lv);
+    st.emergencyISO = DE.gameISO();
+    DE.save(c);
+    return {
+      ok: true, success: true, roll: r, value: st.value, nullUntil: st.nullUntil,
+      msg: "【应急处理】" + det + "　成功：〈" + statusName + "〉1 小时内无效化，数值 " +
+           oldValue + " → " + st.value + "（-" + lv + "，药师等级）。" + sideTxt
+    };
+  }
+
+  /* ---------- 药草采摘 ---------- */
+  /* 判定：体力 + 智力，目标值 = 地貌。1 天最多 1 次。
+     成功 → 获得 1 个药草；大成功 → 3 个；大失败 → 【中毒：6】
+     返回里 success/bigOk 时，调用方再用 grant() 发放药草（让玩家选种类）。 */
+  function gather(c, opts) {
+    opts = opts || {};
+    var useG = DE.canUseSkill(c, "药草采摘");
+    if (!useG.ok) return { ok: false, msg: "这个角色没有【药草采摘】技能（药师自带，或〈副业〉选它）。" };
+    var day = DE.clock.dayNumber();
+    if (c.lastGatherDay === day) {
+      return { ok: false, msg: "今天已经采摘过了（药草采摘 1 天最多 1 次）。" };
+    }
+    var tgt = parseInt(opts.target, 10);
+    if (isNaN(tgt) || tgt <= 0) return { ok: false, msg: "请填写地貌决定的目标值。" };
+
+    c.lastGatherDay = day;   /* 不管成败，今天都算用掉了 */
+    var r = DE.skillJudge(c, ["str", "int"], tgt, useG.penalty);
+    DE.buffConsume(c, ["sprJudge"]);
+    var gSide = (useG.source === "sideJob") ? "　〈副业〉判定 " + useG.penalty + " 已计入。" : "";
+
+    if (r.critFail) {
+      c.statuses = c.statuses || [];
+      c.statuses.push({ name: "中毒", value: 6, type: "physical" });
+      DE.save(c);
+      return {
+        ok: true, gathered: 0, critFail: true, bigOk: false, roll: r,
+        msg: "【药草采摘】大失败！获得异常状态【中毒：6】（与现在状态值无关）。" +
+             "判定：" + r.rolled[0] + "+" + r.rolled[1] + "=" + r.sum + " vs " + tgt + gSide
+      };
+    }
+    if (!r.success) {
+      DE.save(c);
+      return {
+        ok: true, gathered: 0, critFail: false, bigOk: false, roll: r,
+        msg: "【药草采摘】失败，没有采到药草。判定：" +
+             r.rolled[0] + "+" + r.rolled[1] + "=" + r.sum + " vs " + tgt + gSide
+      };
+    }
+    var n = r.bigOk ? 3 : 1;
+    return {
+      ok: true, gathered: n, critFail: false, bigOk: r.bigOk, roll: r, needPick: true,
+      msg: "【药草采摘】" + (r.bigOk ? "大成功！一次获得 3 个药草" : "成功，获得 1 个药草") +
+           "（请在下面选择种类）。判定：" + r.rolled[0] + "+" + r.rolled[1] + "=" + r.sum + " vs " + tgt + gSide
+    };
+  }
+
+  /* 发放采到的药草 */
+  function grant(c, herbId, n) {
+    var raw = DE.findHerb(herbId);
+    if (!raw) return { ok: false, msg: "找不到该药草。" };
+    n = Math.max(1, parseInt(n, 10) || 1);
+    var made = [];
+    for (var i = 0; i < n; i++) {
+      made.push(DE.addItem(c, DE.herbDef(raw), {}));
+    }
+    DE.save(c);
+    return { ok: true, made: made, msg: "获得〈" + raw.name + "〉×" + n + "（采集时间 = 现在）。" };
+  }
+
+  /* 技能可用状态（给 UI 用） */
+  function state(c) {
+    var day = DE.clock.dayNumber();
+    var herbs = usableHerbs(c);
+    var he = DE.canUseSkill(c, "治疗");
+    var fa = DE.canUseSkill(c, "应急处理");
+    var ga = DE.canUseSkill(c, "药草采摘");
+    return {
+      isApothecary: is(c),
+      anySkill: he.ok || fa.ok || ga.ok,
+      heal: { ok: he.ok, penalty: he.penalty, sideJob: he.source === "sideJob" },
+      firstAid: { ok: fa.ok, penalty: fa.penalty, sideJob: fa.source === "sideJob" },
+      gather: { ok: ga.ok, penalty: ga.penalty, sideJob: ga.source === "sideJob" },
+      herbCount: herbs.length,
+      water: DE.waterDaysOf(c),
+      canHeal: he.ok && herbs.length > 0 && DE.waterDaysOf(c) >= 1,
+      statuses: (c.statuses || []).slice(),
+      gatheredToday: c.lastGatherDay === day,
+      canGather: ga.ok && c.lastGatherDay !== day
+    };
+  }
+
+  return { is: is, heal: heal, firstAid: firstAid, gather: gather, grant: grant,
+           state: state, usableHerbs: usableHerbs };
+})();
+
+
+/* ============================================================
+ *  通用技能判定
+ *  ------------------------------------------------------------
+ *  规则书技能表给每个技能写了「使用能力值」和「目标值」。
+ *  有专门界面的技能（治疗 / 应急处理 / 药草采摘 / 生意兴隆）走各自的流程；
+ *  其余技能（音乐 / 狩猎 / 动物搜寻 / 材料加工 / 物品制造 / 修理 / 礼仪教养）
+ *  用这里的通用判定：掷【使用能力值】两个骰子 + 修正 ≥ 目标值。
+ * ============================================================ */
+
+/* 把「智力+精神」「精神+精神」这类写法解析成能力值 key 数组 */
+DE.abilityKeysOf = function (txt) {
+  var MAP = { "体力": "str", "敏捷": "agi", "智力": "int", "精神": "spr" };
+  var out = [];
+  String(txt || "").split(/[+＋/／、,，\s]+/).forEach(function (w) {
+    var k = MAP[w.trim()];
+    if (k) out.push(k);
+  });
+  if (!out.length) return null;
+  if (out.length === 1) out.push(out[0]);      /* 理论上都是两段，兜底 */
+  return out.slice(0, 2);
+};
+
+/* 这个技能的判定信息：{ ok, name, ability, target, effect, penalty, keys, rollable } */
+DE.skillInfoOf = function (c, skillName) {
+  var use = DE.canUseSkill(c, skillName);
+  var d = (DE.PROFESSION_SKILLS || {})[skillName] || null;
+  var keys = d ? DE.abilityKeysOf(d.ability) : null;
+  return {
+    ok: use.ok,
+    name: skillName,
+    ability: d ? d.ability : "—",
+    target: d ? d.target : "—",
+    effect: d ? d.effect : "",
+    source: use.source,
+    penalty: use.penalty,
+    keys: keys,
+    /* 「—」表示被动技能/没有判定 */
+    rollable: !!(use.ok && keys),
+    hasTool: !!(DE.TOOL_SKILLS && DE.TOOL_SKILLS[skillName])
+  };
+};
+
+/* 掷一次通用技能判定。target 由玩家填（主持人决定 / 地貌 / 参照效果表）。 */
+DE.skillJudgeByName = function (c, skillName, target) {
+  var info = DE.skillInfoOf(c, skillName);
+  if (!info.ok) {
+    return { ok: false, msg: "这个角色没有〈" + skillName + "〉技能。" };
+  }
+  if (!info.keys) {
+    return { ok: false, msg: "〈" + skillName + "〉没有判定能力值（" + info.ability + "），不需要掷骰。" };
+  }
+  var r = DE.skillJudge(c, info.keys, target, info.penalty);
+  if (info.keys.indexOf("spr") >= 0) DE.buffConsume(c, ["sprJudge"]);
+  DE.save(c);
+  return {
+    ok: true, roll: r, info: info,
+    msg: "【" + skillName + "】" + r.label + "：" +
+         "d" + r.dice[0] + "(" + r.rolled[0] + ") + d" + r.dice[1] + "(" + r.rolled[1] + ") = " + r.sum +
+         (r.mod ? "，修正 " + (r.mod > 0 ? "+" + r.mod : r.mod) : "") +
+         "，合计 " + r.total + " vs 目标 " + r.target +
+         (info.source === "sideJob" ? "　〈副业〉判定 " + info.penalty + " 已计入。" : "")
+  };
+};
+
+
+/* ============================================================
+ *  ［修理］［物品制造］—— 手艺人技能自动化
+ *  ------------------------------------------------------------
+ *  规则书 p36：
+ *   修理      体力+敏捷判定 ≥ 表 1；时间 = 尺寸×1天；材料费 = 价格 10%
+ *             不管成败都要付材料费；重试再付一次；任何道具都能修
+ *   物品制造  体力+敏捷判定 ≥ 表 1；时间 = 尺寸×1天；材料费 = 价格一半
+ *             只能做「选择职业时决定的道具种类」；重试不花材料费、只花时间
+ *  表 1：≤100g→6 ／ ≤1000g→8 ／ ≤1万g→10 ／ ≤10万g→14 ／ ＞10万g→18
+ * ============================================================ */
+DE.craft = (function () {
+
+  function rule() { return DE.CRAFT_RULE || {}; }
+  function rate(kind) {
+    var m = rule().materialRate || {};
+    return (typeof m[kind] === "number") ? m[kind] : 0;
+  }
+
+  /* 道具的「基础定价」—— 规则明确说材料费按不包含特征加价的价格算 */
+  function basePriceOf(inst) {
+    var def = DE.instDef(inst);
+    if (!def) return 0;
+    var p = def.price;
+    return (typeof p === "number" && p > 0) ? p : 0;
+  }
+
+  /* 花费时间：道具尺寸 × 1 天（尺寸至少算 1 天） */
+  function daysOf(size) {
+    var n = Math.round(Number(size) || 0);
+    return Math.max(1, n);
+  }
+
+  /* 推进游戏时间（会触发每日补给结算） */
+  function advanceDays(days) {
+    if (!days || !DE.clock || !DE.clock.advance) return null;
+    var from = DE.clock.dayNumber();
+    DE.clock.advance(days * 24);
+    return { days: days, fromDay: from, toDay: DE.clock.dayNumber(), supply: DE.clock.lastSupply || null };
+  }
+
+  /* ---------------- 工坊记录（独立于金币账本） ---------------- */
+  var MAX_LOG = 100;
+
+  function pushLog(c, entry) {
+    if (!c) return null;
+    if (!Array.isArray(c.craftLog)) c.craftLog = [];
+    var e = {
+      id: DE.uid("cl"),
+      at: (DE.gameISO ? DE.gameISO() : new Date().toISOString()),
+      day: (DE.clock && DE.clock.dayNumber ? DE.clock.dayNumber() : 1),
+      kind: entry.kind || "craft",
+      name: entry.name || "",
+      success: !!entry.success,
+      dice: entry.dice || [],
+      rolled: entry.rolled || [],
+      sum: entry.sum,
+      mod: entry.mod,
+      total: entry.total,
+      target: entry.target,
+      material: entry.material || 0,
+      days: entry.days || 0,
+      costFree: !!entry.costFree,
+      sideJob: !!entry.sideJob,
+      detail: entry.detail || "",
+      timeLabel: entry.timeLabel || ""
+    };
+    c.craftLog.push(e);
+    if (c.craftLog.length > MAX_LOG) c.craftLog = c.craftLog.slice(-MAX_LOG);
+    return e;
+  }
+
+  /* 返回副本，调用方随意排序不会改到存档 */
+  function logOf(c) { return (((c && c.craftLog) || [])).slice(); }
+
+  function clearLog(c) {
+    if (!c) return { ok: false, msg: "没有角色。" };
+    var n = (c.craftLog || []).length;
+    c.craftLog = [];
+    DE.save(c);
+    return { ok: true, msg: n ? ("已清空 " + n + " 条工坊记录。") : "工坊记录本来就是空的。" };
+  }
+
+  /* ---------------- 修理 ---------------- */
+  function repairInfo(c, inst) {
+    var use = DE.canUseSkill(c, rule().repairSkill || "修理");
+    if (!use.ok) return { ok: false, msg: "这个角色没有【修理】技能（手艺人自带，或〈副业〉选它）。" };
+    if (!inst) return { ok: false, msg: "找不到这件道具。" };
+    var dmax = inst.durabilityMax;
+    if (typeof dmax !== "number" || dmax <= 0) {
+      return { ok: false, msg: "〈" + inst.name + "〉没有耐久度，不能修理。" };
+    }
+    if (inst.durability >= dmax) {
+      return { ok: false, msg: "〈" + inst.name + "〉耐久是满的（" + inst.durability + "/" + dmax + "），不需要修理。" };
+    }
+    var price = basePriceOf(inst);
+    var material = price > 0 ? Math.max(1, Math.floor(price * rate("repair"))) : 0;
+    return {
+      ok: true, use: use,
+      price: price,
+      target: DE.craftTargetOf(price),
+      material: material,
+      days: daysOf(DE.sizeOf(inst)),
+      durability: inst.durability,
+      durabilityMax: dmax
+    };
+  }
+
+  /* 能修的道具（耐久没满的都算） */
+  function repairable(c) {
+    var out = [];
+    ((c && c.inventory) || []).forEach(function (x) {
+      if (typeof x.durabilityMax !== "number" || x.durabilityMax <= 0) return;
+      if (x.durability >= x.durabilityMax) return;
+      var info = repairInfo(c, x);
+      if (info.ok) out.push({ inst: x, info: info });
+    });
+    return out;
+  }
+
+  function doRepair(c, instId, opts) {
+    opts = opts || {};
+    var inst = DE.findInstance(c, instId);
+    var info = repairInfo(c, inst);
+    if (!info.ok) return { ok: false, msg: info.msg };
+    if ((c.money || 0) < info.material) {
+      return { ok: false, msg: "金币不足：材料费要 " + info.material + " G，你现在有 " + (c.money || 0) + " G。" };
+    }
+
+    var r = DE.skillJudge(c, rule().ability || ["str", "agi"], info.target, info.use.penalty);
+    /* 规则：不管判定是否成功，都需要花费材料费 */
+    if (info.material > 0) {
+      DE.ledger.spend(c, info.material, "craft", "修理材料：〈" + inst.name + "〉");
+    }
+    var before = inst.durability;
+    if (r.success) inst.durability = inst.durabilityMax;
+    var time = (opts.advance === false) ? null : advanceDays(info.days);
+    pushLog(c, {
+      kind: "repair", name: inst.name, success: r.success,
+      dice: r.dice, rolled: r.rolled, sum: r.sum, mod: r.mod, total: r.total, target: info.target,
+      material: info.material, days: info.days,
+      sideJob: info.use.source === "sideJob",
+      detail: r.success
+        ? ("耐久 " + before + " → " + inst.durability + "/" + inst.durabilityMax)
+        : ("耐久仍为 " + before + "/" + inst.durabilityMax + "（材料费已付）"),
+      timeLabel: time ? ("第 " + time.fromDay + " 天 → 第 " + time.toDay + " 天") : ""
+    });
+    DE.save(c);
+
+    var det = "判定 " + r.rolled[0] + " + " + r.rolled[1] +
+      (r.mod ? " 修正 " + (r.mod > 0 ? "+" + r.mod : r.mod) : "") +
+      " = " + r.total + " vs 目标 " + info.target;
+    var msgs = ["【修理】" + r.label + "：" + det];
+    msgs.push(r.success
+      ? "〈" + inst.name + "〉耐久 " + before + " → " + inst.durability + "/" + inst.durabilityMax
+      : "〈" + inst.name + "〉耐久仍为 " + before + "/" + inst.durabilityMax + "（材料费已付，可以再修一次）");
+    msgs.push("材料费 " + info.material + " G　耗时 " + info.days + " 天");
+    if (info.use.source === "sideJob") msgs.push("〈副业〉判定 " + info.use.penalty + " 已计入");
+    if (time) msgs.push("游戏时间 → " + DE.clock.label());
+    return {
+      ok: true, success: r.success, roll: r, info: info, time: time,
+      before: before, after: inst.durability, material: info.material,
+      msg: msgs.join("　")
+    };
+  }
+
+  /* ---------------- 物品制造 ---------------- */
+  function craftCandidates(c) {
+    var cats = (c && c.craftCats) || [];
+    var excl = DE.CRAFT_EXCLUDE_CATS || [];
+    return (DE.ITEMS || []).filter(function (it) {
+      if (excl.indexOf(it.cat) >= 0) return false;
+      if (typeof it.price !== "number" || it.price <= 0) return false;
+      if (cats.length && cats.indexOf(it.cat) < 0) return false;
+      return true;
+    });
+  }
+
+  function craftInfo(c, itemId) {
+    var use = DE.canUseSkill(c, rule().craftSkill || "物品制造");
+    if (!use.ok) return { ok: false, msg: "这个角色没有【物品制造】技能（手艺人自带，或〈副业〉选它）。" };
+    var def = DE.findItem(itemId);
+    if (!def) return { ok: false, msg: "找不到这个道具。" };
+    var cats = (c && c.craftCats) || [];
+    if (!cats.length) {
+      return { ok: false, msg: "还没在「车卡」页选「可制作的道具种类」，没法制造。" };
+    }
+    if (cats.indexOf(def.cat) < 0) {
+      return { ok: false, msg: "〈" + def.name + "〉不属于你选定的制作种类。" };
+    }
+    var price = (typeof def.price === "number" && def.price > 0) ? def.price : 0;
+    if (!price) return { ok: false, msg: "〈" + def.name + "〉没有定价，不能制造。" };
+    var pending = c.craftPending || null;
+    var isRetry = !!(pending && pending.itemId === itemId);
+    var full = Math.max(1, Math.floor(price * rate("craft")));
+    return {
+      ok: true, use: use, def: def,
+      price: price,
+      target: DE.craftTargetOf(price),
+      fullMaterial: full,
+      material: isRetry ? 0 : full,
+      isRetry: isRetry,
+      days: daysOf(def.size || 1)
+    };
+  }
+
+  function doCraft(c, itemId, opts) {
+    opts = opts || {};
+    var info = craftInfo(c, itemId);
+    if (!info.ok) return { ok: false, msg: info.msg };
+    if ((c.money || 0) < info.material) {
+      return { ok: false, msg: "金币不足：材料费要 " + info.material + " G，你现在有 " + (c.money || 0) + " G。" };
+    }
+
+    var r = DE.skillJudge(c, rule().ability || ["str", "agi"], info.target, info.use.penalty);
+    if (info.material > 0) {
+      DE.ledger.spend(c, info.material, "craft", "制作材料：〈" + info.def.name + "〉");
+    }
+    var made = null;
+    if (r.success) {
+      made = DE.addItem(c, info.def, {});
+      c.craftPending = null;
+    } else {
+      /* 规则：可再次挑战，重试不花材料费、只花时间 */
+      c.craftPending = { itemId: itemId, name: info.def.name, paidISO: DE.gameISO() };
+    }
+    var time = (opts.advance === false) ? null : advanceDays(info.days);
+    pushLog(c, {
+      kind: "craft", name: info.def.name, success: r.success,
+      dice: r.dice, rolled: r.rolled, sum: r.sum, mod: r.mod, total: r.total, target: info.target,
+      material: info.material, days: info.days, costFree: info.isRetry,
+      sideJob: info.use.source === "sideJob",
+      detail: r.success ? ("做出〈" + info.def.name + "〉") : "失败（材料已投入，可免费重试）",
+      timeLabel: time ? ("第 " + time.fromDay + " 天 → 第 " + time.toDay + " 天") : ""
+    });
+    DE.save(c);
+
+    var det = "判定 " + r.rolled[0] + " + " + r.rolled[1] +
+      (r.mod ? " 修正 " + (r.mod > 0 ? "+" + r.mod : r.mod) : "") +
+      " = " + r.total + " vs 目标 " + info.target;
+    var msgs = ["【物品制造】" + r.label + "：" + det];
+    msgs.push(r.success
+      ? "做好了一个〈" + info.def.name + "〉"
+      : "这次没做出来（材料已投入，重试只花时间、不再收材料费）");
+    msgs.push((info.isRetry ? "材料费 0 G（上一次已付）" : "材料费 " + info.material + " G") +
+      "　耗时 " + info.days + " 天");
+    if (info.use.source === "sideJob") msgs.push("〈副业〉判定 " + info.use.penalty + " 已计入");
+    if (time) msgs.push("游戏时间 → " + DE.clock.label());
+    return {
+      ok: true, success: r.success, roll: r, info: info, time: time,
+      made: made, material: info.material,
+      msg: msgs.join("　")
+    };
+  }
+
+  /* 放弃/清除「已付材料费的那次制作」 */
+  function clearPending(c) {
+    if (!c || !c.craftPending) return { ok: false, msg: "没有进行中的制作。" };
+    var nm = c.craftPending.name || "道具";
+    c.craftPending = null;
+    DE.save(c);
+    return { ok: true, msg: "已放弃重做〈" + nm + "〉（材料费不退）。" };
+  }
+
+  function state(c) {
+    var rep = DE.canUseSkill(c, rule().repairSkill || "修理");
+    var crf = DE.canUseSkill(c, rule().craftSkill || "物品制造");
+    return {
+      any: rep.ok || crf.ok,
+      repair: { ok: rep.ok, penalty: rep.penalty, sideJob: rep.source === "sideJob" },
+      craft: { ok: crf.ok, penalty: crf.penalty, sideJob: crf.source === "sideJob" },
+      cats: (c && c.craftCats) || [],
+      candidates: crf.ok ? craftCandidates(c) : [],
+      pending: (c && c.craftPending) || null,
+      log: logOf(c)
+    };
+  }
+
+  return {
+    basePriceOf: basePriceOf,
+    repairInfo: repairInfo,
+    repairable: repairable,
+    doRepair: doRepair,
+    craftCandidates: craftCandidates,
+    craftInfo: craftInfo,
+    doCraft: doCraft,
+    clearPending: clearPending,
+    advanceDays: advanceDays,
+    pushLog: pushLog,
+    logOf: logOf,
+    clearLog: clearLog,
+    state: state
+  };
+})();

@@ -92,6 +92,28 @@ DE.char = {
     if (!prof) W.push("还没选职业（规则书要求车卡第一步就是选职业）。");
     else O.push("职业：" + prof.name + "（含 " + (prof.skills || []).length + " 个职业技能）");
 
+    /* ---- 2b 〈副业〉：只有带这个技能的职业（农民）才需要选 ---- */
+    var sjv = DE.sideJobInfo ? DE.sideJobInfo(c) : { eligible: false, has: false };
+    if (sjv.eligible && !sjv.has) {
+      W.push("这个职业带〈副业〉，但还没选副业技能（从 " + (sjv.skills || []).length +
+        " 项里选 1 项，该技能判定 -1）。");
+    } else if (sjv.has) {
+      O.push("副业：" + sjv.skill + "（判定 " + sjv.penalty + "）");
+    }
+
+    /* ---- 2c 〈物品制造〉的可制作种类 ---- */
+    if (DE.canUseSkill && DE.canUseSkill(c, "物品制造").ok) {
+      var cc = c.craftCats || [];
+      if (!cc.length) {
+        W.push("有〈物品制造〉技能，但还没选「可制作的道具种类」—— 没选的话没法制造。");
+      } else {
+        O.push("可制作种类：" + cc.map(function (k) {
+          var d = (DE.CATEGORIES || {})[k];
+          return d ? d.label : k;
+        }).join("、") + "（" + cc.length + " 种）");
+      }
+    }
+
     /* ---- 3 能力值：只能从 4/6/8 选，且必须正好是所选组合的那四个数 ---- */
     var ab = c.abilities || {};
     /* DE.ABILITY_KEYS 是 [{key,name,short,desc}]，不是字符串数组 */

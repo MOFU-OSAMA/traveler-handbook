@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>首页 · 龙蛋物语</title>
-<link rel="stylesheet" href="css/style.css?v=580ae04d">
+<link rel="stylesheet" href="css/style.css?v=1afb06c2">
 </head>
 <body>
 <div class="wrap">
@@ -61,7 +61,8 @@
   <!-- 异常状态单独一张卡，放在最显眼的位置（规则书 p74-p75，只有旅行者用） -->
   <div class="card" id="statusCard">
     <h2>🩹 异常状态<span class="hint" style="font-weight:400;margin-left:8px">会压制能力值 · 影响 HP/MP/行动值</span></h2>
-    <div id="statusEditor"></div>
+    <div id="statusEditor"><div id="buffMini" style="margin-top:12px"></div>
+    </div>
   </div>
 
 
@@ -177,16 +178,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/data/items.js?v=b15018ab"></script>
-<script src="js/data/rules.js?v=14425777"></script>
+<script src="js/data/items.js?v=0a752df4"></script>
+<script src="js/data/rules.js?v=1974519d"></script>
 <script src="js/data/magic.js?v=4919a17f"></script>
-<script src="js/core/state.js?v=1708a659"></script>
+<script src="js/core/state.js?v=70eff126"></script>
 <script src="js/core/archive.js?v=a3f5c344"></script>
 <script src="js/core/saves.js?v=8ff6ddee"></script>
-<script src="js/core/inventory.js?v=530f63bb"></script>
-<script src="js/core/ledger.js?v=776dfae5"></script>
-<script src="js/core/ui.js?v=b8a639f8"></script>
-<script src="js/core/character.js?v=84aded0e"></script>
+<script src="js/core/inventory.js?v=9f0b49da"></script>
+<script src="js/core/ledger.js?v=3e9fd21a"></script>
+<script src="js/core/ui.js?v=300204c3"></script>
+<script src="js/core/character.js?v=6b6ae62a"></script>
 <script src="js/core/backup.js?v=beda2c2c"></script>
 <script>
 DE.ui.bootPage({ after: function () {
@@ -329,7 +330,8 @@ DE.ui.bootPage({ after: function () {
           DE.ui.esc(c.name || "（未命名旅行者）") + '</div>' +
         '<div class="hint" style="margin-bottom:6px">' +
         '等级 ' + c.level + ' · 经验 ' + c.exp + ' · ' +
-        (prof ? DE.ui.esc(prof.name) : "<span style='color:#b0473c'>未选择职业</span>") + ' · ' +
+        (prof ? DE.ui.esc(prof.name) : "<span style='color:#b0473c'>未选择职业</span>") +
+        (c.sideJob ? '（副业：' + DE.ui.esc(c.sideJob) + ' −1）' : '') + ' · ' +
         (typ ? DE.ui.esc(typ.name) + '型' : "<span style='color:#b0473c'>未选择特长</span>") +
         '</div>' +
       '</div>' +
@@ -468,6 +470,14 @@ DE.ui.bootPage({ after: function () {
     }).join("");
 
     var pen = DE.judgmentPenalty(c, judgeType);
+    var herbBonus = DE.judgmentBonus ? DE.judgmentBonus(c, judgeType) : { value: 0, parts: [], fixed: null };
+    var bonusRows = (herbBonus.parts || []).length
+      ? herbBonus.parts.map(function (p) {
+          return "<li>" + DE.ui.esc(p.src) + " " +
+            (p.v ? "<b>" + (p.v > 0 ? "+" + p.v : p.v) + "</b>" : "<b>固定</b>") +
+            (p.note ? '　<span class="hint">' + DE.ui.esc(p.note) + "</span>" : "") + "</li>";
+        }).join("")
+      : "<li>无</li>";
     var penRows = pen.parts.length
       ? pen.parts.map(function (p) {
           return "<li>" + DE.ui.esc(p.src) + " <b>" + (p.v > 0 ? "+" + p.v : p.v) + "</b>" +
@@ -494,7 +504,15 @@ DE.ui.bootPage({ after: function () {
       '<div style="margin-top:12px"><b>本次判定的减值</b>　' +
         (pen.value ? '<span style="color:#b0473c"><b>' + pen.value + "</b></span>" : "<b>±0</b>") +
         "</div>" +
-      '<ul class="hint" style="margin:6px 0 0 18px">' + penRows + "</ul>";
+      '<ul class="hint" style="margin:6px 0 0 18px">' + penRows + "</ul>" +
+      ((herbBonus.value || herbBonus.fixed != null)
+        ? '<div style="margin-top:10px"><b>🌿 本次判定的药草加值</b>　' +
+            '<span style="color:#3f7d74"><b>' +
+            (herbBonus.value ? "+" + herbBonus.value : "") +
+            (herbBonus.fixed != null ? (herbBonus.value ? "　" : "") + "结果固定 " + herbBonus.fixed : "") +
+            "</b></span></div>" +
+            '<ul class="hint" style="margin:6px 0 0 18px">' + bonusRows + "</ul>"
+        : "");
 
     /* ===== 判定结果（可编辑） ===== */
     if (judgeLast) {
@@ -520,6 +538,12 @@ DE.ui.bootPage({ after: function () {
           (r.parts.length
             ? '<div class="hint" style="margin-top:5px">减值来自：' +
               r.parts.map(function (p) { return DE.ui.esc(p.src) + " " + p.v; }).join("；") + "</div>"
+            : "") +
+          ((r.bonus || r.fixedTotal != null)
+            ? '<div class="hint" style="margin-top:3px;color:#2d5c55">药草加值：' +
+              (r.bonus ? "+" + r.bonus + "　" : "") +
+              (r.bonusParts || []).map(function (p) { return DE.ui.esc(p.src); }).join("；") +
+              (r.fixedTotal != null ? "（结果被固定为 " + r.fixedTotal + "）" : "") + "</div>"
             : "") +
           "</div></div>" +
 
@@ -655,9 +679,27 @@ DE.ui.bootPage({ after: function () {
     });
   }
 
+  /* 药草增益（迷你版：异常状态卡下方） */
+  function renderBuffMini() {
+    var box = DE.ui.$("#buffMini");
+    if (!box) return;
+    var list = DE.buffList ? DE.buffList(c) : [];
+    if (!list.length) { box.innerHTML = ""; return; }
+    var SCOPE = { next: "下一次判定", nextMagic: "下一场魔法", day: "当天", scene: "场景内" };
+    box.innerHTML =
+      '<div class="hint" style="margin-bottom:6px"><b>🌿 药草增益</b>　' +
+        list.length + " 项生效中（可在背包页清除）</div>" +
+      '<div class="chips">' + list.map(function (b) {
+        return '<span class="chip" title="' + DE.ui.esc(b.label || "") + '">' +
+          DE.ui.esc(b.herbName || "药草") +
+          ' <span class="hint">（' + DE.ui.esc(SCOPE[b.scope] || b.scope) + "）</span></span>";
+      }).join("") + "</div>";
+  }
+
   function renderAll() {
     renderSaves();
     renderVitals();
+    renderBuffMini();
     renderChar(); renderStatusEditor(); renderBag(); renderExpiry(); renderClockChip();
     renderJudge();
     DE.ui.expiryBanner(DE.ui.$("#expiryBanner"));
